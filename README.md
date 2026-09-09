@@ -5,7 +5,7 @@ curated places pinned across the old town and the villages around it, a food dir
 artisan and tailor index, and a booking flow for cyclo tours, basket boats and bicycle
 trips. Bilingual throughout, English and Vietnamese.
 
-**Live:** <https://javier-sysflow.github.io/Inside-Hoi-An-jade-s_project-/>
+**Live:** <https://javier-sysflow.github.io/Inside-Hoi-An-/>
 
 ## What it does
 
