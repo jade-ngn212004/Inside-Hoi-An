@@ -14,14 +14,23 @@
     <meta property="og:title" content="Inside Hoi An — Curated Neighborhood Guide, Map &amp; Food Directory" />
     <meta property="og:description" content="The definitive interactive neighborhood guide, curated food directory, artisan index, and experience booking for Hoi An Ancient Town and surroundings." />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://inside-hoi-an.ai.studio/" />
-    <meta property="og:image" content="https://inside-hoi-an.ai.studio/og-card.png" />
+    <!-- SOCIAL CARD (BUG-AUDIT.md defect 28). These pointed at the AI Studio domain,
+         where /og-card.png does not exist: that host answers every path with its
+         app shell, so scrapers fetched the "image", received text/html, and showed
+         no picture. og:url pointed there too, so Facebook treated that page as the
+         canonical one. Everything now names this deployment, absolutely - scrapers
+         do not resolve relative URLs - and the card is served as image/png. -->
+    <meta property="og:url" content="https://javier-sysflow.github.io/Inside-Hoi-An/" />
+    <meta property="og:image" content="https://javier-sysflow.github.io/Inside-Hoi-An/og-card.png" />
+    <meta property="og:image:secure_url" content="https://javier-sysflow.github.io/Inside-Hoi-An/og-card.png" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:site_name" content="Inside Hoi An" />
     <meta property="og:image:alt" content="Inside Hoi An - curated heritage guide, map and food directory." />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://inside-hoi-an.ai.studio/og-card.png" />
+    <meta name="twitter:image" content="https://javier-sysflow.github.io/Inside-Hoi-An/og-card.png" />
+    <meta name="twitter:image:alt" content="Inside Hoi An - curated heritage guide, map and food directory." />
     <link rel="icon" href="favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png" />

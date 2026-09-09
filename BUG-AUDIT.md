@@ -1105,6 +1105,33 @@ map at y=170, 613px tall, 613px visible, 12/12 tiles, 78 marker images, worker a
 and controlling, **0 errors, 0 failed requests**. After rules 51-52, on the local build:
 reachability numbers above; desktop 0 errors, no overflow, pills and panel unchanged.
 
+## Social sharing card (defect 28)
+
+### 28. Shared links showed no image — FIXED
+
+Reported as "when sharing the link to socials it doesn't show the logo". The page
+told every scraper that its preview image was
+`https://inside-hoi-an.ai.studio/og-card.png`. That file does not exist on that host,
+which answers every path with its app shell: the URL returns **200 with
+`text/html`** (1,715 bytes), so Facebook, LinkedIn, X, WhatsApp and iMessage fetched
+the "image", got a web page, and rendered the card without one. `og:url` named the
+same domain, which makes Facebook treat that page as canonical and scrape it instead.
+
+The card itself was fine all along: `og-card.png` is live at the Pages URL as
+`image/png`, 1200x630, 23 KB, with the logo mark, wordmark and tagline.
+
+*Fix:* `og:url`, `og:image` and `twitter:image` now name this deployment absolutely
+(scrapers do not resolve relative URLs), with `og:image:secure_url`, `og:image:type`
+and `twitter:image:alt` added.
+
+*After deploying:* the big platforms cache the first scrape of a URL. A link that was
+shared before the fix keeps its broken card until it is re-scraped - Facebook's
+Sharing Debugger ("Scrape Again"; also clears Instagram and WhatsApp), LinkedIn's Post
+Inspector, and X's Card Validator each do it on demand.
+
+*Still true for the AI Studio URL:* sharing `inside-hoi-an.ai.studio` will show no
+image until that deployment gets its own card and tags, which needs the source.
+
 ## Not a defect: local-copy limitations
 
 The live site has a real backend. This folder does not, so these are stubbed:
