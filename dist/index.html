@@ -3,7 +3,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- interactive-widget=resizes-content: when the on-screen keyboard opens, shrink
+         the layout viewport instead of only the visual one. Without it the bottom tab
+         bar stays pinned to the bottom of a layout viewport that is now taller than
+         what you can see, so it appears to float partway up the screen while typing.
+         Ignored by browsers that do not support it. See rule 50. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <title>Inside Hoi An — Curated Neighborhood Guide, Map &amp; Food Directory</title>
     <meta name="description" content="The definitive interactive neighborhood guide, curated food directory, artisan index, and experience booking for Hoi An Ancient Town and surroundings." />
     <meta property="og:title" content="Inside Hoi An — Curated Neighborhood Guide, Map &amp; Food Directory" />
@@ -455,6 +460,228 @@
         contain-intrinsic-size: 40px 40px;
       }
     </style>
+    <style>
+      /* ============================================================================
+         MOBILE MAP-FIRST PASS (rules 41-45)
+         Closes BUG-AUDIT defect 12, which was left PARTLY FIXED with the note "the
+         real fix is a map-first mobile layout, which needs source". It does not: the
+         map wrapper and the two information strips are siblings in the same flex
+         column, so `order` alone reorders them.
+
+         Measured before writing, on the running build:
+
+           device            header   above map   map height   MAP VISIBLE
+           iPhone SE 320      218px      597px       504px         90px
+           Android   360      218px      666px       676px        130px
+           iPhone 14 390      170px      659px       780px        185px
+           iPhone Max 430     170px      676px       868px        256px
+
+         So on a phone the app opened on a currency table and a weather forecast, and
+         the map - the product - was 78% below the fold, with the sliver that showed
+         covered by the events banner and the install chip. That is the "I can't even
+         see the map" report, and it is a layout bug, not a rendering one.
+         ============================================================================ */
+
+      @media (max-width: 1023px) {
+        /* 41. Map first.  The column is
+               <div class="... flex flex-col">
+                 <div class="bg-stone-900/95 ...">   currency   152px
+                 <div class="bg-stone-920 ...">      weather    338px
+                 <div class="relative flex-1 ...">   the map
+           Giving the two strips a positive order pushes them below the map without
+           needing a selector for the map itself, which keeps its default order of 0.
+           The strips keep every pixel of their content - they are one swipe down,
+           not hidden. Desktop is untouched: it has room for all three. */
+        main > div > [class*="bg-stone-900/95"] { order: 2; }
+        main > div > [class*="bg-stone-920"]    { order: 3; }
+
+        /* 42. Give the map exactly the space between the two bars.
+           It ships as h-[calc(100vh-64px)], which assumes a 64px header and that the
+           map is the only thing on screen. The real header is 170-218px on a phone
+           and the tab bar takes another 61px, so that height overshot the viewport
+           and pushed the map's own bottom controls off-screen. --ih-chrome is
+           measured at runtime (see the script at the end of <body>) because the
+           header's height changes with viewport width; the fallback covers the
+           moment before the first measurement lands. dvh, not vh, so the map does
+           not sit under the browser's collapsing address bar on iOS. */
+        main > div > div > [class*="h-[calc(100vh-64px)]"] {
+          height: calc(100vh - var(--ih-chrome, 232px));
+          height: calc(100dvh - var(--ih-chrome, 232px));
+          min-height: 300px;
+        }
+      }
+
+      /* 43. Fit four tabs on a 320px phone.
+         Search / Map / Food / Social needed 387px at px-4 with gap-2, so the bar
+         overflowed and the document scrolled sideways 67px - which also dragged the
+         fixed install chip's close button off-screen, making it undismissable.
+         Tightening the padding and gap below 400px brings the row inside 320px. */
+      @media (max-width: 400px) {
+        .sticky.bottom-0 button {
+          padding-left: .5rem;
+          padding-right: .5rem;
+          gap: .3rem;
+          font-size: 12px;
+        }
+      }
+
+      /* 44. Nothing fixed to the bottom-right may exceed the viewport.
+         Belt and braces for the install chip: rule 43 removes the overflow that
+         displaced it, and this stops any future bottom-anchored chip from doing the
+         same thing again. */
+      @media (max-width: 480px) {
+        body > div[role="region"] {
+          max-width: calc(100vw - 24px);
+          right: 12px;
+          left: auto;
+        }
+      }
+
+      /* 46. THE BIG ONE: 890px of the Tickets page was being thrown away.
+         <main> is `flex flex-col` and every page wrapper inside it is
+         `max-w-7xl mx-auto ... flex-1`. Auto margins on the cross axis switch OFF
+         a flex item's stretch, so instead of taking the parent's width the wrapper
+         sizes to its own max-content and clamps at max-w-7xl = 1280px. Inside a
+         390px <main> with overflow-hidden, that means 890px of every row is cut
+         off with no scrollbar and no way to reach it. Measured on Tickets:
+         <main> box=390, content=1280.
+
+         It is invisible on a desktop because the viewport is wider than 1280, which
+         is why it survived the earlier audits. Restoring the stretch is one line;
+         the wrappers then behave the way `max-w-7xl mx-auto` reads on the page.
+         Verified against every header destination, not just Tickets. */
+      @media (max-width: 1023px) {
+        main > [class*="max-w-"] {
+          width: 100%;
+          max-width: 100%;
+        }
+      }
+
+      /* 47. The events panel is not allowed to eat the map.
+         It is `absolute bottom-4` inside the map wrapper and renders expanded at
+         727px - taller than the whole map on a phone - so once rule 41 brought the
+         map up to the top, this panel covered 97% of it. Capping it and letting its
+         body scroll keeps every word reachable (the same treatment rule 15 gave the
+         weather panel) while the map keeps most of its surface. The panel's own
+         Minimize button still works and still wins. */
+      @media (max-width: 1023px) {
+        [class*="max-w-6xl"][class*="pointer-events-auto"][class*="rounded-3xl"] {
+          /* 28vh, not 40: at 40 it still took 337px of a 613px map - more than half
+             of the surface the map-first pass just recovered. 28vh leaves the map
+             about 70% of itself while the panel keeps its header, its poster and the
+             first row of event cards, and scrolls for the rest. */
+          max-height: 28vh;
+          display: flex;
+          flex-direction: column;
+        }
+        /* On a short phone the map is only ~300px, so 28vh is still half of it. */
+        @media (max-height: 700px) {
+          [class*="max-w-6xl"][class*="pointer-events-auto"][class*="rounded-3xl"] {
+            max-height: 21vh;
+          }
+        }
+        [class*="max-w-6xl"][class*="pointer-events-auto"][class*="rounded-3xl"] > :last-child {
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          min-height: 0;
+        }
+      }
+
+      /* 48. Segmented controls scroll instead of crushing their own labels.
+         Two of them assume desktop width and are squeezed at 390px:
+           Events  - 6 segments (All / Today / This Week / This Month / Upcoming /
+                     Archive) in a 413px row inside a 390px column, so it overflows
+                     AND every label wraps to two or three lines.
+           Translate - 3 segments (AI Live Translator / Phrasebook / Menu Decoder)
+                     in 364px, each label broken across three lines.
+         Wrapping a pill group looks broken, so they scroll sideways instead: the
+         segments keep their real width and their one-line labels, and the row gets
+         the same fade the other scrollers got in rule 30 so it reads as "more this
+         way" rather than as a slice through a word. */
+      @media (max-width: 767px) {
+        main [class*="bg-stone-100"][class*="rounded-xl"][class*="border-stone-200"],
+        main [class*="bg-stone-900/90"][class*="rounded-2xl"][class*="border-stone-700/80"] {
+          max-width: 100%;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          scrollbar-width: none;
+          -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), rgba(0, 0, 0, .15));
+                  mask-image: linear-gradient(to right, #000 calc(100% - 28px), rgba(0, 0, 0, .15));
+        }
+        main [class*="bg-stone-100"][class*="rounded-xl"][class*="border-stone-200"]::-webkit-scrollbar,
+        main [class*="bg-stone-900/90"][class*="rounded-2xl"][class*="border-stone-700/80"]::-webkit-scrollbar {
+          display: none;
+        }
+        main [class*="bg-stone-100"][class*="rounded-xl"][class*="border-stone-200"] > *,
+        main [class*="bg-stone-900/90"][class*="rounded-2xl"][class*="border-stone-700/80"] > * {
+          flex: 0 0 auto;
+          white-space: nowrap;
+        }
+      }
+
+      /* 49. The VR360 scene picker is 1118px wide inside a 390px panel.
+         The panel is overflow-hidden, so 787px of the scene list - and 108px of the
+         control cluster beside it - were simply unreachable: no scrollbar, no drag.
+         Same treatment as rule 48. Scoped to the VR360 panel by its own full-height
+         dark-scene class combination so no other row is affected. */
+      @media (max-width: 1023px) {
+        [class*="bg-stone-950"][class*="h-[calc(100vh-4rem)]"] [class*="gap-2.5"],
+        [class*="bg-stone-950"][class*="h-[calc(100vh-4rem)]"] [class*="gap-2"][class*="pointer-events-auto"] {
+          max-width: 100%;
+          overflow-x: auto;
+          scrollbar-width: none;
+        }
+        [class*="bg-stone-950"][class*="h-[calc(100vh-4rem)]"] [class*="gap-2.5"] > *,
+        [class*="bg-stone-950"][class*="h-[calc(100vh-4rem)]"] [class*="gap-2"][class*="pointer-events-auto"] > * {
+          flex: 0 0 auto;
+        }
+      }
+
+      /* 49b. The four map-mode pills stop sitting on top of the filter chips.
+         They are `absolute top-20 right-4` — 80px down from the map's top edge — but
+         the search field and the category chip row occupy the first ~98px, so on a
+         phone the pills overlapped the chips and both were unreadable where they
+         crossed. This is the defect the earlier audit logged as 17 and withdrew
+         ("four labelled pills do not fit a 390px phone at all"). They do fit; they
+         were just starting too high. Dropping them below the chip row is enough, and
+         costs nothing now that the map is full height. */
+      @media (max-width: 767px) {
+        /* 8rem, not 7: the search field plus the chip row measure 98px from the map's
+           top edge and start at 16px, so they end at 114px. 7rem (112px) still left a
+           2px collision. 8rem clears it with room to spare. */
+        .absolute.top-20.right-4 { top: 8rem; }
+      }
+
+      /* 50. Keep the bottom tab bar on the bottom edge.
+         Reported as "the Search / Map / Food / Social bar sometimes floats to the
+         middle of the screen". It could not be reproduced in desktop emulation - it
+         is pinned in every section, at every scroll position, with overlays open and
+         with a search that matches nothing - which points at the two things a
+         desktop browser cannot reproduce, and both have the same symptom:
+
+           a) The on-screen keyboard. By default only the visual viewport shrinks, so
+              a bar pinned to the bottom of the unchanged layout viewport ends up
+              part-way up what you can actually see. Fixed by
+              interactive-widget=resizes-content on the viewport meta above.
+           b) iOS Safari's collapsing address bar. `min-h-screen` is 100vh, which on
+              iOS means the height with the address bar *collapsed* - taller than the
+              visible area while it is showing. dvh is the height that is actually
+              visible right now, so the page stops being taller than the screen it
+              is on. svh is the conservative fallback for older Safari.
+
+         Also gives the bar the iOS home-indicator inset it never had: the page sets
+         viewport-fit=cover, so without this the tab labels sit under the indicator
+         on any notched iPhone. max() means it can only ever add padding. */
+      @media (max-width: 1023px) {
+        .min-h-screen {
+          min-height: 100svh;
+          min-height: 100dvh;
+        }
+        .sticky.bottom-0 {
+          padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+        }
+      }
+    </style>
   </head>
   <body class="bg-amber-50/40 text-stone-900 antialiased selection:bg-amber-500 selection:text-white">
     <div id="root"></div>
@@ -712,6 +939,108 @@
         }
         if (document.readyState === 'loading') addEventListener('DOMContentLoaded', boot);
         else boot();
+      })();
+    </script>
+    <script>
+      /* MOBILE MAP-FIRST, runtime half (rules 42 and 45). See the matching CSS block.
+
+         Two jobs:
+         42. Publish the real height of the sticky header plus the bottom tab bar as
+             --ih-chrome, so the map can be exactly the space between them. It has to
+             be measured rather than assumed: the header is 170px at 390px wide and
+             218px at 320px, because its control row wraps.
+         45. Make the bottom "Map" tab go to the map. It never did - the audit
+             recorded scrollY staying at 0 when it was pressed. Harmless now that the
+             map is at the top, but it still matters once you have scrolled down to
+             the weather. */
+      (function () {
+        var lastChrome = -1;
+
+        function measure() {
+          var header = document.querySelector('header');
+          if (!header) return false;
+          var bar = document.querySelector('.sticky.bottom-0') || document.querySelector('.fixed.bottom-0');
+          var px = header.offsetHeight + (bar ? bar.offsetHeight : 0);
+          if (px && px !== lastChrome) {
+            lastChrome = px;
+            document.documentElement.style.setProperty('--ih-chrome', px + 'px');
+            /* Leaflet caches its container size and only re-reads it on a window
+               resize, so a CSS-driven height change leaves it drawing at the old
+               size. Telling it to re-measure is what keeps the tiles and the marker
+               positions correct. Guarded by the px change, so this cannot loop. */
+            dispatchEvent(new Event('resize'));
+          }
+          return true;
+        }
+
+        function watch() {
+          if (typeof ResizeObserver === 'function') {
+            var ro = new ResizeObserver(measure);
+            var header = document.querySelector('header');
+            var bar = document.querySelector('.sticky.bottom-0') || document.querySelector('.fixed.bottom-0');
+            if (header) ro.observe(header);
+            if (bar) ro.observe(bar);
+          }
+          addEventListener('orientationchange', function () { setTimeout(measure, 200); });
+          addEventListener('resize', function () { setTimeout(measure, 0); });
+        }
+
+        /* The app renders asynchronously, so poll until the header exists, take a few
+           more readings while fonts and images settle, then hand over to the observer. */
+        var polls = 0, settled = 0;
+        var iv = setInterval(function () {
+          polls++;
+          if (measure()) settled++;
+          if (settled >= 8 || polls >= 80) { clearInterval(iv); watch(); }
+        }, 125);
+
+        function mapEl() { return document.querySelector('.leaflet-container'); }
+
+        function wireMapTab() {
+          var bar = document.querySelector('.sticky.bottom-0') || document.querySelector('.fixed.bottom-0');
+          if (!bar || bar.dataset.ihMapTab) return;
+          bar.dataset.ihMapTab = '1';
+          /* Listen on the bar, not the button: React replaces the buttons on every
+             tab change, so a handler bound to one would be thrown away. */
+          bar.addEventListener('click', function (e) {
+            var btn = e.target.closest && e.target.closest('button');
+            if (!btn) return;
+            var label = (btn.innerText || '').trim().toLowerCase();
+            if (label !== 'map' && label !== 'bản đồ') return;
+            /* after React has re-rendered for this tab */
+            setTimeout(function () {
+              var m = mapEl();
+              if (!m) return;
+              var header = document.querySelector('header');
+              var top = m.getBoundingClientRect().top + scrollY - (header ? header.offsetHeight : 0);
+              scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+            }, 60);
+          }, true);
+        }
+
+        /* Debounced, and it stops watching once the bar is wired. React mutates the
+           tree constantly, so an undebounced subtree observer runs its callback on
+           every render - measured at 18 of 114 dropped frames while scrolling. The
+           handler is bound to the bar with capture, so React replacing the buttons
+           inside it does not need a re-wire; only the bar itself being replaced
+           would, which is what the short re-check window covers. */
+        var mo = null, moTimer = null, sinceWired = 0;
+        function onMutate() {
+          if (moTimer) return;
+          moTimer = setTimeout(function () {
+            moTimer = null;
+            var bar = document.querySelector('.sticky.bottom-0') || document.querySelector('.fixed.bottom-0');
+            if (bar && bar.dataset.ihMapTab) {
+              if (++sinceWired > 12 && mo) { mo.disconnect(); mo = null; }
+              return;
+            }
+            sinceWired = 0;
+            wireMapTab();
+          }, 400);
+        }
+        wireMapTab();
+        mo = new MutationObserver(onMutate);
+        mo.observe(document.documentElement, { childList: true, subtree: true });
       })();
     </script>
   </body>

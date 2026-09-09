@@ -885,6 +885,135 @@ it wraps and already carries its own padding.
 
 Mobile is untouched: 12px above the mark, 170px header, map top y=659, all unchanged.
 
+## Mobile audit and map-first pass (rules 41-50)
+
+Reported as "I can't even see the map on mobile", then "tickets, events and translate
+are stretched out" and "the Search/Map/Food/Social bar sometimes floats to the middle".
+Audited by driving Chrome at five widths - 320, 360, 390, 430 and 768 - through all
+nineteen destinations in the header and the tab bar, measuring every element's box
+against its container rather than eyeballing screenshots.
+
+### 20. The map was 78% below the fold — FIXED
+
+Not a rendering fault. The map was present, sized and drawing all 88 markers; it was
+simply pushed off the bottom of the screen by everything stacked above it.
+
+| device | header | content above map | map height | **map actually visible** |
+|---|---|---|---|---|
+| iPhone SE 320 | 218px | 597px | 504px | **90px** |
+| Android 360 | 218px | 666px | 676px | **130px** |
+| iPhone 14 390 | 170px | 659px | 780px | **185px** |
+| iPhone Max 430 | 170px | 676px | 868px | **256px** |
+
+The app opened on a currency table and a five-day weather forecast, and the sliver of
+map that remained was covered by the events banner and the install chip.
+
+The previous audit recorded this as defect 12 and deferred it: *"the real fix is a
+map-first mobile layout, which needs source."* It does not. The map wrapper and the two
+information strips are siblings in one flex column, so giving the strips a positive
+`order` moves the map above them (rule 41) — the strips keep every pixel of content,
+one swipe down. Rule 42 then sizes the map to exactly the gap between the header and
+the tab bar, using a runtime-measured `--ih-chrome` because the header is 170px at
+390px wide and 218px at 320px, and `dvh` so it does not sit under iOS's collapsing
+address bar. Leaflet is told to re-measure whenever that value changes, or it keeps
+drawing at the old size.
+
+| device | before | after |
+|---|---|---|
+| iPhone SE 320 | 90px | **300px (all of it)** |
+| Android 360 | 130px | **461px (all of it)** |
+| iPhone 14 390 | 185px | **613px (all of it)** |
+| iPhone Max 430 | 256px | **701px (all of it)** |
+| iPad mini 768 | 396px | **777px (all of it)** |
+
+### 21. Tickets threw away 890px of every row — FIXED
+
+The worst defect in this pass, and invisible on a desktop. Every page wrapper inside
+`<main>` is `max-w-7xl mx-auto ... flex-1`. `<main>` is `flex flex-col`, and **auto
+margins on the cross axis switch off a flex item's stretch** — so instead of taking the
+parent's width, the wrapper sized to its own max-content and clamped at
+`max-w-7xl` = 1280px. Inside a 390px `<main>` with `overflow-hidden`, that cut 890px off
+the right of every row with no scrollbar and no way to reach it: headings ended
+mid-word, body copy stopped mid-sentence, and three of four booking buttons were gone.
+
+Measured: `<main>` box 390px, content 1280px. It survives on desktop only because the
+viewport is wider than 1280. One line restores the stretch (rule 46), and the wrappers
+then behave the way `max-w-7xl mx-auto` reads on the page.
+
+### 22. Controls crushed or clipped in four sections — FIXED
+
+| where | what was measured | fix |
+|---|---|---|
+| Events | 6-segment date filter, 413px row in a 390px column, labels wrapping to three lines; price/audience dropdowns cut off | rule 48 — scrolls sideways, one-line labels |
+| Translate | 3-segment mode switch, every label broken across three lines in 364px | rule 48 |
+| VR360 | scene picker 1118px wide inside a 390px panel with `overflow-hidden`: **787px unreachable**, plus 108px of the control cluster | rule 49 — scrolls sideways |
+| Tab bar | Search / Map / Food / Social needed 387px, so the document scrolled sideways 67px at 320px — which also dragged the install chip's **close button off-screen, making it undismissable** | rule 43 tightens padding below 400px; rule 44 clamps any bottom-anchored chip |
+
+Horizontal overflow measured 67px at 320px and 27px at 360px before, **0px at every
+width after**.
+
+### 23. The events banner covered the map — FIXED
+
+`absolute bottom-4` inside the map wrapper, rendering expanded at 727px — taller than
+the whole map on a phone. Harmless while the map was off-screen; once rule 41 brought
+the map up it covered 97% of it. Rule 47 caps it and lets its body scroll, the same
+treatment rule 15 gave the weather panel. Its own Minimize button still wins. The cap
+is 28vh, dropping to 21vh under a 700px-tall screen, because on a short phone the map
+itself is only ~300px and a viewport-relative cap would still have taken half of it.
+Measured after: the panel is 37-40% of the map instead of 97%.
+
+Rule 49b also moved the four map-mode pills from `top-20` to `top: 8rem`. The search
+field and chip row occupy the first 114px of the map, so the pills were painted on top
+of the chips and both were unreadable where they crossed - the defect the earlier audit
+logged as 17 and withdrew as unfixable ("four labelled pills do not fit a 390px phone
+at all"). They fit; they were starting too high. Overlap measured 370px2 before, **0
+at every width after**.
+
+### 24. The tab bar floating to mid-screen — HARDENED, not reproduced
+
+Could not be reproduced in emulation: it is pinned to the bottom in all nineteen
+destinations, at the top, middle and bottom of every page, with overlays open, and with
+a search that matches nothing. That points at the two things a desktop browser cannot
+reproduce, and both produce exactly this symptom:
+
+* **The on-screen keyboard.** By default only the visual viewport shrinks, so a bar
+  pinned to the bottom of the unchanged layout viewport ends up part-way up what you
+  can see. Fixed with `interactive-widget=resizes-content` on the viewport meta.
+* **iOS Safari's collapsing address bar.** `min-h-screen` is `100vh`, which on iOS is
+  the height with the address bar *collapsed* — taller than the visible area while it
+  is showing. Rule 50 switches it to `dvh` (with `svh` as the fallback) on mobile.
+
+Rule 50 also gives the bar the `env(safe-area-inset-bottom)` padding it never had: the
+page sets `viewport-fit=cover`, so without it the tab labels sit under the home
+indicator on any notched iPhone.
+
+**If it still happens, it is worth knowing exactly when** — which tab, and whether the
+keyboard was open — because that distinguishes the two causes above from a third.
+
+### Not defects
+
+* **SOS panel, 32px "clipped".** A decorative watermark at `-right-8 -bottom-8
+  opacity-15`, deliberately hung off the corner and clipped. Intentional.
+* **The map filter chip row, 1811px wide.** Inside `overflow-x-auto`; a real scroller,
+  reachable by design.
+
+### Verification
+
+Nineteen destinations x five widths. After: **0px horizontal overflow at every width**,
+tab bar pinned in every section at every scroll position, **0 uncaught exceptions, 0
+failed requests, 0 broken images**, 88 markers drawing on every device. Desktop
+re-checked and unchanged.
+
+One regression was caught and fixed during this pass: the rule-45 MutationObserver ran
+its callback on every React render, costing 18 of 114 frames while scrolling and taking
+the median frame from 7ms to 13.9ms. Debounced and self-disconnecting, the median is
+back to 7.1ms.
+
+Page weight rose from 1.66 MB to ~2.7 MB, all of it map tiles and marker art. That is
+the cost of the map now being on screen and therefore actually loading, rather than
+sitting below the fold where `loading="lazy"` deferred it — the fix working, not
+regressing.
+
 ## Not a defect: local-copy limitations
 
 The live site has a real backend. This folder does not, so these are stubbed:
@@ -910,7 +1039,7 @@ design. The `GEMINI_API_KEY` in `.env.local` is unused by this build.
 
 | File | Change |
 |---|---|
-| `dist/index.html` | Fixes 2-6, 9-15, polish pass 20-33, brand mark, PWA wiring |
+| `dist/index.html` | Fixes 2-6, 9-15, polish 20-33, brand mark, PWA wiring, performance 35-40, mobile map-first 41-50 |
 | `dist/manifest.webmanifest`, `dist/sw.js` | New: PWA manifest and service worker |
 | `dist/brand/`, `dist/icons/`, `dist/favicon.ico`, `dist/apple-touch-icon.png`, `dist/og-card.png` | New: brand assets from InsideHoiAnLogo.png |
 | `serve.py` | Manifest media type, no-store on the service worker; gzip, WebP negotiation, Cache-Control |
