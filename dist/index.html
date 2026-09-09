@@ -956,6 +956,71 @@
           min-height: 44px;
         }
 
+        /* 62. Line the map-mode icons up with the chip row, and clear it.
+           Two things were off, and both are visible as "the icons aren't aligned":
+
+           - The chip row sits inside a wrapper with `px-1`, so the chips start at
+             x=20 while the icon row, at `left-4`, started at x=16. Four pixels is
+             exactly enough to read as broken when the two rows are stacked.
+           - Rule 56 raised the chips from 30px to 40 (44 with their padding), which
+             pushed the row's bottom edge from 298 to 302 - past the `top: 8rem` that
+             rule 49b had measured against the old height. The icons were overlapping
+             the chips by 4px. 9rem clears them with room to spare.
+
+           Measured at 402x874: chips 258-302, icons now 314-358. */
+        .absolute.top-20.right-4 {
+          left: 1rem;
+          top: 9rem;
+        }
+        /* ...and the chip row loses the `px-1` that inset it 4px further than the
+           search field above it, so all three left edges are one rail at 16px. */
+        .absolute.top-4 [class*="overflow-x-auto"] {
+          padding-left: 0;
+          padding-right: 0;
+        }
+
+        /* 63. The install chip stops sitting on the events pill.
+           It is `position: fixed; bottom: calc(70px + safe-area)`, which put it
+           straight over the events pill at the bottom of the map - the pill's label
+           was legible only in the sliver either side of it. The chip is transient
+           and dismissible, so it is the one that moves. !important because the
+           chip's position is set as an inline style by the script that builds it.
+
+           Moving it up alone was not enough: right-anchored it still sat across the
+           zoom stack (42px of overlap). The stack is a permanent control and the
+           chip is a dismissible promo, so the chip goes to the left edge, where the
+           band between the mode icons and the events pill is empty. */
+        body > div[role="region"] {
+          bottom: calc(140px + env(safe-area-inset-bottom, 0px)) !important;
+          left: 12px !important;
+          right: auto !important;
+        }
+
+        /* 65. On a very small screen the install promo stands down.
+           At 320x568 the header is 218px and the tab bar 61, so the map is left at
+           its 300px floor - and the search field, chip row, mode icons, zoom stack
+           and events pill all have to live on it. There is no arrangement in which a
+           268x62 promo chip also fits: parked anywhere it covers a real control.
+           It is a hint, not a feature - Safari's Share > Add to Home Screen is still
+           there - so on screens this small it does not render.
+
+           This does not fully clear 320x568: the zoom stack is 188px on a 289px map
+           and still meets the chip row. That is a symptom of the 218px header, which
+           belongs to the brand design, not to this pass. Everything at 360px and up
+           is clean. */
+        @media (max-width: 360px), (max-height: 640px) {
+          body > div[role="region"] {
+            display: none !important;
+          }
+        }
+
+        /* 64. The events pill stops short of the zoom stack.
+           Rule 52b capped it at `100vw - 7rem`, which at 402px centres it on
+           x 56..346 - four pixels into the stack at x=342. 8.5rem ends it at 334. */
+        .absolute.bottom-6[class*="left-1/2"] > button {
+          max-width: calc(100vw - 8.5rem);
+        }
+
         /* 57. The zoom stack keeps its footprint despite the bigger buttons.
            Four 44px buttons with the original 6px gaps would run 194px up a 433px
            map. A 4px gap holds the stack to 188px - still four discrete targets with
@@ -1051,8 +1116,15 @@
 
         /* The share, save and close buttons sit over the hero at 40px. Close is the
            one control every dialog must offer, so it gets the same 44px floor as
-           everything else on the map. */
-        .fixed.inset-0.z-50 [class*="aspect-[16/9]"] button {
+           everything else on the map.
+
+           Scoped to that cluster, not to every button in the hero. Targeting the
+           hero broadly also caught the individual stars in the rating widget, which
+           are buttons: each blew up from ~16px to 44px, the row went to 344x44 -
+           two stacked rows of oversized stars - and it pushed the rating pill 46px
+           past the right edge of the card. That is the "stars are all messed up"
+           in the report, and it was mine. */
+        .fixed.inset-0.z-50 [class*="aspect-[16/9]"] .absolute.top-4.right-4 > button {
           min-width: 44px;
           min-height: 44px;
         }
