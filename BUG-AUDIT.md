@@ -1014,6 +1014,97 @@ the cost of the map now being on screen and therefore actually loading, rather t
 sitting below the fold where `loading="lazy"` deferred it — the fix working, not
 regressing.
 
+## Map reachability on phones (rules 51-53) and the second deployment
+
+Reported after the map-first pass shipped: "the map is not working on mobile". Two
+separate findings, and the first one is not in the code at all.
+
+### 25. The original AI Studio deployment is still live, with none of the fixes
+
+`https://inside-hoi-an.ai.studio/` still answers, and serves the untouched original
+build - a 1,715-byte `index.html` with none of the sixty-odd rules in this file. It is
+the URL in the page's own `og:url` and the one AI Studio hands out. Anyone opening the
+app from that link, an old bookmark, or a share card sees the map 78% below the fold
+exactly as first reported, no matter what is deployed to Pages.
+
+The fixed build lives only at `https://javier-sysflow.github.io/Inside-Hoi-An/`. The
+old Pages URL (`.../Inside-Hoi-An-jade-s_project-/`) returns 404 since the rename.
+**When "still broken" is reported, the first question is which URL.**
+
+### 26. On a phone, most of the map could not be touched — FIXED
+
+The Pages site was probed under iPhone and Android emulation, first visit and a
+service-worker-controlled return visit: map on screen, tiles loaded, 88 markers, no
+errors, no failed requests. So the map rendered. Then a 16x16 grid was sampled over
+its box, asking the browser what element is on top at each point:
+
+| device | map | **reachable surface** | what took the rest |
+|---|---|---|---|
+| Android 360x640 | 361px | **41%** | events panel 33%, search + chips 16%, mode pills 8% |
+| iPhone SE 375x667 | 388px | **31%** | search + chips 22%, events panel 19%, mode pills 15%, install chip 13% |
+| iPhone 14 390x844 | 613px | **34%** | events panel 30%, search + chips 16%, mode pills 11%, install chip 9% |
+
+A synthetic finger-drag at the centre of the map **scrolled the page instead of panning
+the map** on three of four profiles. That is what "not working" means from the outside:
+you touch the map, you hit a control, the page moves. On a desktop the same controls
+float over a map twenty times their size and are fine.
+
+Two rules:
+
+- **51.** The four labelled mode pills (176x158px, anchored right) become 44px icon
+  buttons on phones - the icons already carry the meaning and the label text stays in
+  the DOM at zero size, so the accessible name is unchanged. Defect 17 from the first
+  audit, withdrawn then as needing source.
+- **51b.** The icons run as a row under the chip row, on the left. Kept right-anchored
+  they still stacked to 170px and on a 361px map sat on top of the app's own
+  zoom/layers stack, which is also right-anchored - two controls in the same pixels,
+  which an earlier reachability figure (68%) had quietly counted as one. The band
+  under the chips on the left is empty on every phone.
+- **52.** The events panel opens **minimised** on phones. It has its own Minimise
+  button; a script presses it once per map mount and never again for that mount, so a
+  visitor who expands it is not fought. Its collapsed state is the app's own centred
+  "All Events" pill. Confirmed not persisted - the only `localStorage` keys in the
+  bundle are `hoian_saved_events` and `hoian_saved_spots` - so it cannot leak to
+  desktop. Scoped to phones and to phones held sideways; on desktop the panel is
+  untouched (verified: expanded, pills 185px and labelled).
+- **52b.** That collapsed pill carries a sentence for a label, which on a 390px
+  screen wrapped to five lines inside the `rounded-full` and became a 190px blob -
+  taking back a third of what 52 had freed (measured 9% + 8% of the map). One line,
+  ellipsised, capped to the width beside the bottom-right control stack.
+
+| device | before | **after** | centre drag |
+|---|---|---|---|
+| Android 360x640 | 41% | **62%** | scrolled page -> pans map |
+| iPhone SE 375x667 | 31% | **55%** | scrolled page -> pans map |
+| iPhone 14 390x844 | 34% | **70%** | pans -> pans |
+| landscape 844x390 | 22% | 22% | scrolled page (the centre of a 300px map is the tab bar) |
+
+What still covers the map is the search field and chip row (16-22%, core controls,
+kept) and the install chip (9-13%, dismissible, gone once dismissed).
+
+### 27. Rule 53, landscape floor — WITHDRAWN
+
+Lowering the map's 300px floor to 180px in landscape so it cleared the tab bar made it
+worse: the search/chip block and the events bar are fixed heights, so a shorter map has
+less free surface, not more. Measured 22% at 300px, 10% at 180px. Floor stays at 300px.
+The real landscape cost is the 186px header, which is the brand header wrapping and
+belongs to that design.
+
+### Service worker: cache bumped to v3
+
+The bundle and `sw.js` were both changed under their existing filenames after the v2
+cache was named (relative paths for the Pages sub-path, then sub-path fixes). The
+worker update re-adds the shell, but a phone that noticed the new worker would run one
+more visit on the mismatched bundle before it took effect. `ih-shell-v3` makes every
+client drop the old shell outright on activate.
+
+### Verification
+
+Live site, iPhone 17.5 UA, 390x844, first visit and return visit through the worker:
+map at y=170, 613px tall, 613px visible, 12/12 tiles, 78 marker images, worker active
+and controlling, **0 errors, 0 failed requests**. After rules 51-52, on the local build:
+reachability numbers above; desktop 0 errors, no overflow, pills and panel unchanged.
+
 ## Not a defect: local-copy limitations
 
 The live site has a real backend. This folder does not, so these are stubbed:
@@ -1039,7 +1130,7 @@ design. The `GEMINI_API_KEY` in `.env.local` is unused by this build.
 
 | File | Change |
 |---|---|
-| `dist/index.html` | Fixes 2-6, 9-15, polish 20-33, brand mark, PWA wiring, performance 35-40, mobile map-first 41-50 |
+| `dist/index.html` | Fixes 2-6, 9-15, polish 20-33, brand mark, PWA wiring, performance 35-40, mobile map-first 41-50, map reachability 51-53 |
 | `dist/manifest.webmanifest`, `dist/sw.js` | New: PWA manifest and service worker |
 | `dist/brand/`, `dist/icons/`, `dist/favicon.ico`, `dist/apple-touch-icon.png`, `dist/og-card.png` | New: brand assets from InsideHoiAnLogo.png |
 | `serve.py` | Manifest media type, no-store on the service worker; gzip, WebP negotiation, Cache-Control |

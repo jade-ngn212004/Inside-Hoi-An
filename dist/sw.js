@@ -8,12 +8,19 @@
      /api/*      -> network-first, falling back to the last good response.
    Bump SHELL_VERSION to invalidate everything.
 
+   v3: the bundle and this worker were both changed under their existing filenames
+   after v2 (relative paths for the Pages sub-path, then sub-path fixes). The
+   worker update re-adds the shell with cache:'reload', but only from the visit
+   *after* the one that noticed the new worker, so a phone could run one visit on
+   a mismatched bundle. A new cache name means every client drops the old shell
+   outright on activate and never serves a stale bundle against a fresh page.
+
    v2: every cache name is bumped because the performance pass rewrote the
    bundle and re-encoded every photo *under their existing filenames*. A client
    that installed v1 has the 1 MB originals and the pre-patch bundle cached
    against those exact URLs, and cache-first would keep serving them forever. */
 
-const SHELL_VERSION = 'ih-shell-v2';
+const SHELL_VERSION = 'ih-shell-v3';
 const MEDIA_CACHE   = 'ih-media-v2';
 const TILE_CACHE    = 'ih-tiles-v2';
 const API_CACHE     = 'ih-api-v2';

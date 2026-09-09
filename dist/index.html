@@ -681,6 +681,96 @@
           padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
         }
       }
+
+      /* ============================================================================
+         MOBILE MAP REACHABILITY (rules 51-53)
+         After the map-first pass the map was on screen, but on a small phone a
+         finger still could not reach it. Sampling a 16x16 grid over the map on
+         the live site and asking what element is on top at each point:
+
+           Android 360x640   map 361px tall   pannable area  ~15%
+           iPhone SE 375x667 map 388px tall   pannable area  ~20%
+           iPhone 14 390x844 map 613px tall   pannable area  ~45%
+
+         The rest was the app's own floating controls - the 176px-wide stack of four
+         labelled mode pills, the events panel, the search field and chip row - all
+         of which take the touch, so a drag scrolls the page instead of panning the
+         map. That is "the map is not working" as a user would describe it. On a
+         desktop the same controls float over a map twenty times their size.
+         ============================================================================ */
+
+      /* 51. The mode pills become icon buttons on phones.
+         Four labelled pills are 176px wide and 158px tall, anchored right - a third
+         of a 360px map's width, half its height. Their icons already carry the
+         meaning (the labels are the tooltip case). At 44x44 they cover an eighth of
+         what they did. The label text is kept in the DOM at zero size so the
+         accessible name is unchanged. This is defect 17 from the first audit, which
+         was withdrawn as needing source. */
+      @media (max-width: 767px) {
+        /* 51b. ...and they run as a row under the chips, on the left.
+           Right-anchored, the four icons still stacked to 170px and, on a 361px map
+           (Android 360x640), collided with the app's own zoom/layers stack, which is
+           also right-anchored and bottom-6. The band directly under the chip row on
+           the left is empty on every phone; a row there is 44px tall, clears the
+           chips by 14px, and competes with nothing. */
+        .absolute.top-20.right-4 {
+          right: auto;
+          left: 1rem;
+          flex-direction: row;
+        }
+        .absolute.top-20.right-4 > button {
+          width: 44px;
+          height: 44px;
+          padding: 0;
+          justify-content: center;
+          gap: 0;
+          font-size: 0;
+          line-height: 0;
+        }
+        .absolute.top-20.right-4 > button > * { font-size: 0; }
+        .absolute.top-20.right-4 > button > svg {
+          width: 20px;
+          height: 20px;
+          flex: 0 0 auto;
+        }
+      }
+
+      /* 52. The events panel opens minimised on phones.  (runtime, see script)
+         Even capped at 28vh it takes the bottom third of a phone-sized map and
+         captures every touch on it. The panel has its own Minimise button, whose
+         collapsed state is a single bar with the "All Events" button and an expand
+         control - one tap from everything. The script at the end of <body> presses
+         it once per map mount, and never again for that mount, so a visitor who
+         expands it is not fought. */
+
+      /* 52b. The minimised events pill is one line on phones.
+         Minimised, the panel is the app's own centred `rounded-full` pill at the
+         bottom of the map. Its label is a sentence ("Featured Event Posters (Hội An
+         Creative Week…)"), which on a 390px screen wrapped to five lines inside the
+         pill and became a 190px-tall blob covering more map than it saved. One line,
+         ellipsised, capped to the width between the map's edge and its bottom-right
+         control stack. Desktop is wide enough for the sentence and is untouched. */
+      @media (max-width: 767px), (orientation: landscape) and (max-height: 520px) {
+        .absolute.bottom-6[class*="left-1/2"] > button {
+          max-width: calc(100vw - 7rem);
+          white-space: nowrap;
+        }
+        .absolute.bottom-6[class*="left-1/2"] > button > span {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+
+      /* 53. WITHDRAWN. Lowering the map's 300px floor to 180px in landscape so it
+         fit above the tab bar made things worse, not better: the search field and
+         chip row take a fixed ~98px from the top and the events bar a fixed ~69px
+         from the bottom, so a shorter map has *less* free surface, not more.
+         Measured: pannable area 22% at 300px, 10% at 180px. The floor stays at
+         300px; the page scrolls a little in landscape and that is the better
+         trade. The real landscape cost is the 186px header, which is the brand
+         header's wrapping rows and belongs to that design, not to this pass. */
     </style>
   </head>
   <body class="bg-amber-50/40 text-stone-900 antialiased selection:bg-amber-500 selection:text-white">
@@ -1041,6 +1131,53 @@
         wireMapTab();
         mo = new MutationObserver(onMutate);
         mo.observe(document.documentElement, { childList: true, subtree: true });
+      })();
+    </script>
+    <script>
+      /* RULE 52, runtime half: the events panel opens minimised on phones.
+         The panel's own Minimise button is found by its icon path (lucide's
+         minimize-2, "m14 10 7-7"), which is the same in English and Vietnamese, and
+         scoped to the map's parent so no other button on the page can match. It is
+         pressed once per map mount: the map element is remembered, and while that
+         same element is on the page the panel is never touched again, so a visitor
+         who expands it keeps it expanded. Only on phones - on a desktop the panel
+         floats over a map twenty times its size and reads as intended. */
+      (function () {
+        /* Portrait phones, plus a phone held sideways: 844px wide is not a tablet
+           when it is only 390px tall. */
+        if (!('matchMedia' in window) ||
+            !matchMedia('(max-width: 767px), (orientation: landscape) and (max-height: 520px)').matches) return;
+        var handledMap = null;
+
+        function minimiseOnce() {
+          var map = document.querySelector('.leaflet-container');
+          if (!map) return false;
+          if (map === handledMap) return true;
+          /* The panel is `absolute bottom-4` TWO levels up from the Leaflet
+             container - a sibling of the map's own wrapper, not a child of it.
+             (The first draft looked one level up, found nothing, and silently did
+             nothing; the reachability probe had the same off-by-one.) */
+          var scope = (map.parentElement && map.parentElement.parentElement) || map.closest('main') || document;
+          var icon = scope.querySelector('svg path[d^="m14 10 7-7"]');
+          if (!icon) { handledMap = map; return true; }      /* already minimised, or no panel */
+          var btn = icon.closest('button');
+          if (!btn) { handledMap = map; return true; }
+          handledMap = map;
+          btn.click();
+          return true;
+        }
+
+        var tries = 0;
+        var iv = setInterval(function () {
+          if (minimiseOnce() || ++tries > 80) clearInterval(iv);
+        }, 150);
+
+        /* A new map mount (tab switch back to the map) gets one press too. */
+        var t = null;
+        new MutationObserver(function () {
+          clearTimeout(t);
+          t = setTimeout(minimiseOnce, 500);
+        }).observe(document.documentElement, { childList: true, subtree: true });
       })();
     </script>
   </body>
