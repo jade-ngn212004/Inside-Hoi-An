@@ -2,6 +2,11 @@
 *.local
 .env
 .env.*
+.dev.vars
+**/.dev.vars
+
+# wrangler local state
+**/.wrangler/
 
 # Dependencies and build caches
 node_modules
