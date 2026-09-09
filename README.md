@@ -70,7 +70,7 @@ service worker no-store so updates reach clients that already installed it.
 This matters because Pages serves the repository root by default, and the root has no
 `index.html` - only this README, which is why an unconfigured Pages site shows the README
 instead of the app. All asset paths are **relative**, so the app works both at a domain root
-and under a project sub-path like `/Inside-Hoi-An-jade-s_project-/`.
+and under a project sub-path like `/Inside-Hoi-An/`.
 
 ## Layout
 
@@ -86,8 +86,11 @@ and under a project sub-path like `/Inside-Hoi-An-jade-s_project-/`.
 
 ## Caveats
 
-- **The AI features need the real backend.** `/api/ai/*` and `/api/partners/apply` have no
-  server here, so the concierge opens and renders but cannot answer.
+- **The AI features need a server.** GitHub Pages is static and answers POST with 405, so on
+  the live site the concierge falls back to "Em An is momentarily busy". Running locally with
+  `serve.py` it works: the server proxies to Gemini using the key in `.env.local`. To make it
+  work on the public site, deploy `worker/` and set the endpoint in `dist/ai-config.js`.
+  See [worker/README.md](worker/README.md).
 - **Payments are a prototype.** The checkout is labelled "supported in the proposed platform"
   and processes nothing.
 - **Weather, currency and advisories are demo data**, labelled as such in the interface.

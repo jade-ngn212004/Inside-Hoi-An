@@ -811,6 +811,244 @@
           min-height: 300px;
         }
       }
+
+      /* 55. THE FOOTER'S FIVE LINK COLUMNS BECOME ACCORDIONS ON PHONES.
+         (runtime half at the end of <body>)
+
+         Measured at 390x844: the footer is 1901px of a 3234px document - 59% of
+         everything below the header is a wall of links. It renders as `grid-cols-2`,
+         which on a 390px screen is two 163px columns, and that width is the whole
+         problem:
+
+         - all 51 links measure 19px tall, stacked 10px apart. Nothing here is a
+           touch target; the median row is under half the 44px minimum.
+         - 17 of the 51 labels wrap mid-phrase ("Sampan Boats & / Lanterns",
+           "Vegetarian & Plant- / Based").
+         - the three promo buttons carry `truncate`, which at 163px clips them to
+           "Events & ...", "Book Veh...", "Accomm...". On a phone the app's own
+           calls to action cannot be read.
+         - the columns are 559/559/388/388/343px tall in a two-up grid, so the
+           short ones leave roughly 250px of blank column beside them, and the
+           fifth ("Discover") sits alone with an empty half-page next to it.
+
+         One column, and each heading becomes its own 52px disclosure row: five
+         readable section names in a screen's worth of space, opening to full-width
+         44px rows. Every link is still here and still one tap away - the list it
+         lives in is now something you choose to open. Desktop and tablet keep the
+         5- and 3-up grids untouched.
+
+         The collapse is keyed to `[data-ih-acc]`, which only the script sets, so if
+         the script never runs the footer is a plain single column with real touch
+         targets and nothing is hidden. */
+      @media (max-width: 767px) {
+        footer .grid.grid-cols-2 {
+          grid-template-columns: 1fr;
+          gap: 0;
+        }
+
+        /* A hairline per section, so five headings read as five rows and not as
+           one paragraph of bold text. */
+        footer[data-ih-acc] .grid.grid-cols-2 > div + div {
+          border-top: 1px solid rgb(231 229 228 / .85);   /* stone-200 */
+        }
+
+        footer[data-ih-acc] .grid.grid-cols-2 > div > h3 {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: .5rem;
+          margin: 0;
+          min-height: 52px;
+          padding: .25rem 0;
+          cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        /* The chevron is drawn from two borders rather than added to the DOM: the
+           heading is React's, and anything inserted inside it is a child React did
+           not put there. It inherits the heading's colour, so it tracks the palette. */
+        footer[data-ih-acc] .grid.grid-cols-2 > div > h3::after {
+          content: "";
+          flex: 0 0 auto;
+          width: .5rem;
+          height: .5rem;
+          margin-right: .3rem;
+          border-right: 2px solid currentColor;
+          border-bottom: 2px solid currentColor;
+          opacity: .4;
+          transform: translateY(-2px) rotate(45deg);
+          transition: transform .18s ease;
+        }
+        footer[data-ih-acc] .grid.grid-cols-2 > div[data-ih-open="1"] > h3::after {
+          transform: translateY(2px) rotate(-135deg);
+        }
+
+        footer[data-ih-acc] .grid.grid-cols-2 > div[data-ih-open="0"] > ul { display: none; }
+        footer[data-ih-acc] .grid.grid-cols-2 > div[data-ih-open="1"] > ul { padding-bottom: .75rem; }
+
+        /* Full-width 44px rows. The 10px `space-y-2.5` gap goes with them: a 44px
+           row does not need a gutter as well, and dropping it is what keeps an open
+           section to a screen and a half instead of two. */
+        footer .grid.grid-cols-2 ul > li + li { margin-top: 0; }
+        footer .grid.grid-cols-2 ul > li > button {
+          display: flex;
+          align-items: center;
+          width: 100%;
+          min-height: 44px;
+          padding: .25rem 0;
+          font-size: 14px;
+          line-height: 1.35;
+        }
+
+        /* 358px of row is wide enough for every one of these labels, so the
+           ellipsis that was eating the three promo buttons has nothing left to do. */
+        footer .grid.grid-cols-2 .truncate {
+          overflow: visible;
+          text-overflow: clip;
+          white-space: normal;
+        }
+
+        /* Those three keep their tinted pill, which needs a little more inside it
+           once the row is 44px tall. */
+        footer .grid.grid-cols-2 ul > li > button[class*="rounded-md"] {
+          padding-top: .5rem;
+          padding-bottom: .5rem;
+        }
+      }
+    </style>
+    <style>
+      /* ============================================================================
+         MAP CONTROLS ON A PHONE (rules 56-57)
+         Audited in WebKit on an iPhone 14, where the visible viewport is 664px, not
+         the nominal 844 - Safari's own chrome takes the rest - so the map is 433px
+         and seventeen controls compete for that surface.
+
+         **Eleven of the seventeen were under the 44px touch minimum**, including the
+         two most used: the search field's input was **20px tall**, and the zoom,
+         satellite and recenter buttons were 40px. Six icon-only buttons carried a
+         `title` and no accessible name; `title` is a hover affordance, so on a phone
+         it is invisible to a sighted user and unreliable for VoiceOver.
+         ============================================================================ */
+
+      @media (max-width: 1023px) {
+        /* 56. Every control on the map clears 44px.
+           Grown from the inside with min-height/min-width, so nothing is
+           repositioned and the visual weight barely changes - the search field goes
+           from a 20px input to a 44px one inside the same card. The filter chips
+           stop at 40: they are a secondary, horizontally scrolling row, and at 44
+           the strip starts reading as a second toolbar. Everything else is primary.
+           Measured after: 0 of 17 controls under the minimum. */
+        [class*="bg-white/95"][class*="rounded-2xl"][class*="flex-1"] input {
+          min-height: 44px;
+        }
+        [class*="bg-white/95"][class*="rounded-2xl"][class*="flex-1"] > button {
+          min-width: 44px;
+          min-height: 44px;
+        }
+        .absolute.top-4 [class*="min-w-max"] > button {
+          min-height: 40px;
+        }
+        .absolute.bottom-6.right-4 > button {
+          width: 44px;
+          height: 44px;
+        }
+        .absolute.bottom-6[class*="left-1/2"] > button {
+          min-height: 44px;
+        }
+
+        /* 57. The zoom stack keeps its footprint despite the bigger buttons.
+           Four 44px buttons with the original 6px gaps would run 194px up a 433px
+           map. A 4px gap holds the stack to 188px - still four discrete targets with
+           clear space between them, and no more of the map spent than before. */
+        .absolute.bottom-6.right-4 {
+          gap: 4px;
+        }
+      }
+
+      /* ============================================================================
+         THE MARKER DETAIL MODAL (rules 58-60)
+         Tapping a map pin opens a dialog whose header is a hero image sized purely by
+         width - `aspect-[16/9] w-full`, no cap - so the wider the card, the less room
+         is left for the thing you opened it to read. Measured in WebKit:
+
+           desktop 1440x900   card 672x828   hero 377px (46% of the card)
+                              -> 336px of scroll for 633px of content: 53% visible
+           iPhone 14 664px    card 611px     hero 194px
+                              -> 285px of scroll for 852px of content: 33% visible
+
+         Reported as "a giant picture, then only a sliver of scroll" on desktop and
+         "all messed up" on a phone. Same cause, different symptom.
+         ============================================================================ */
+
+      /* 58. Cap the hero where it is oversized: wide screens.
+           At 672px wide the 16:9 header is 377px of an 828px dialog. 240px is still a
+           generous banner - the badges, rating and title that sit over it need about
+           150px - and it hands 137px straight to the content. The image keeps
+           `object-cover`, so it crops rather than distorts.
+           After: 473px of scroll, 75% of the content visible instead of 53%. */
+      @media (min-width: 768px) {
+        .fixed.inset-0.z-50 [class*="aspect-[16/9]"] {
+          max-height: 240px;
+        }
+      }
+
+      /* 59. On a phone the hero is not the problem - the inset is.
+           At 344px wide the header is already only 194px, and the category badge,
+           rating row, price and a two-line title sit on top of it; cropping it
+           further just crowds them. The space to reclaim is the frame: the overlay
+           insets the card by 16px and caps it at ~92vh, so 53px of a 664px screen
+           goes to letterboxing. A detail sheet on a phone should use the screen.
+           Rounding is kept at the top only, so it still reads as a sheet over the
+           map rather than a new page. After: 351px of scroll, up from 285px. */
+      @media (max-width: 767px) {
+        .fixed.inset-0.z-50 {
+          padding: 0;
+          align-items: flex-end;
+        }
+        /* Sized from the overlay, not from the viewport units. The overlay is
+           `fixed inset-0`, so 100% of it is exactly the visible area - whereas dvh
+           resolved 38px taller here, which hung the card off the top of the screen
+           and sliced the close button in half. A percentage cannot disagree with
+           the box it is measured against. */
+        .fixed.inset-0.z-50 > [class*="max-w-2xl"] {
+          height: 100%;
+          max-height: 100%;
+          /* The card ships `my-8`. Full height plus 64px of vertical margin is
+             taller than the overlay, and flex-end then pushed its top 32px off the
+             screen - which is what sliced the close button in half. */
+          margin: 0;
+          border-radius: 0;
+          border-left: 0;
+          border-right: 0;
+          border-bottom: 0;
+        }
+        /* Going full-bleed makes the card 384px wide instead of 346, and a 16:9
+           header grows with it - 194px became 216px, giving back a third of what the
+           frame just saved. Cap it at 180: the badges and title have more horizontal
+           room at this width, so they need less height than they did at 346. */
+        .fixed.inset-0.z-50 [class*="aspect-[16/9]"] {
+          max-height: 180px;
+        }
+        /* The footer keeps three buttons; it does not need 16px all round to do it. */
+        .fixed.inset-0.z-50 > [class*="max-w-2xl"] > [class*="border-t"] {
+          padding: .625rem .75rem max(.625rem, env(safe-area-inset-bottom, 0px));
+        }
+      }
+
+      /* 60. Nothing in the dialog body runs off its right edge.
+           The card is `rounded-3xl overflow-hidden`, so a row that is too wide is not
+           scrollable - it is cut. At 346px the ratings summary put its score, its
+           recommendation percentage and a "Read Reviews" button on one nowrap line,
+           and the button lost its last characters. Letting those rows wrap costs a
+           line and keeps every word. */
+      @media (max-width: 767px) {
+        .fixed.inset-0.z-50 [class*="overflow-y-auto"] [class*="flex"][class*="items-center"] {
+          flex-wrap: wrap;
+        }
+        .fixed.inset-0.z-50 [class*="overflow-y-auto"] button {
+          max-width: 100%;
+        }
+      }
     </style>
     <script src="ai-config.js"></script>
     <script>
@@ -1257,6 +1495,104 @@
           clearTimeout(t);
           t = setTimeout(minimiseOnce, 500);
         }).observe(document.documentElement, { childList: true, subtree: true });
+      })();
+    </script>
+    <script>
+      /* RULE 55, runtime half: the footer's five link columns become accordions on
+         phones. See the matching CSS block for the measurements.
+
+         The stylesheet does the collapsing; this only marks up state, because the
+         footer is React's. Nothing is inserted into it and no className is touched:
+         the footer gets `data-ih-acc`, each column gets `data-ih-open`, and the
+         chevron is a CSS pseudo-element. React does not manage those attributes, so
+         a re-render leaves them alone, and a remount re-wires from the observer.
+
+         `data-ih-acc` is what the collapse rules key on and only this script sets
+         it, so a failure here leaves a plain, readable single-column footer rather
+         than five headings with their contents hidden behind nothing. */
+      (function () {
+        if (!('matchMedia' in window)) return;
+        var mq = matchMedia('(max-width: 767px)');
+
+        function columns() {
+          var f = document.querySelector('footer');
+          var g = f && f.querySelector('.grid.grid-cols-2');
+          if (!g) return null;
+          var cols = [].filter.call(g.children, function (c) {
+            return c.querySelector(':scope > h3') && c.querySelector(':scope > ul');
+          });
+          return cols.length ? { footer: f, cols: cols } : null;
+        }
+
+        function onActivate(e) {
+          if (!mq.matches) return;
+          var h3 = e.target.closest && e.target.closest('h3');
+          if (!h3 || !h3.parentElement || !h3.parentElement.hasAttribute('data-ih-open')) return;
+          if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+          e.preventDefault();
+          var col = h3.parentElement;
+          var open = col.getAttribute('data-ih-open') !== '1';
+          col.setAttribute('data-ih-open', open ? '1' : '0');
+          h3.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        function sync() {
+          var found = columns();
+          if (!found) return;
+          var f = found.footer;
+
+          if (!f.dataset.ihAccWired) {
+            f.dataset.ihAccWired = '1';
+            /* Bound to the footer with capture, not to the headings: React replaces
+               those on a language change and a handler on one would be thrown away. */
+            f.addEventListener('click', onActivate, true);
+            f.addEventListener('keydown', onActivate, true);
+          }
+
+          if (mq.matches) {
+            f.setAttribute('data-ih-acc', '1');
+            found.cols.forEach(function (col) {
+              /* Only ever set on a column that has none, so a section the visitor
+                 opened stays open across re-renders. Closed is the default: the
+                 point of the pass is that the footer costs a screen, not six. */
+              if (!col.hasAttribute('data-ih-open')) col.setAttribute('data-ih-open', '0');
+              var h3 = col.querySelector(':scope > h3');
+              h3.setAttribute('role', 'button');
+              h3.setAttribute('tabindex', '0');
+              h3.setAttribute('aria-expanded', col.getAttribute('data-ih-open') === '1' ? 'true' : 'false');
+            });
+          } else {
+            /* Rotated to landscape, or a tablet: the grid is back and the headings
+               are headings again. Stripped rather than left lying, so a screen
+               reader is not told about a control the layout no longer has. */
+            f.removeAttribute('data-ih-acc');
+            found.cols.forEach(function (col) {
+              var h3 = col.querySelector(':scope > h3');
+              if (!h3) return;
+              h3.removeAttribute('role');
+              h3.removeAttribute('tabindex');
+              h3.removeAttribute('aria-expanded');
+            });
+          }
+        }
+
+        /* The footer mounts with the app and is inside `content-visibility: auto`
+           (rule 38), so poll briefly for it, then hand over to a debounced observer
+           for language changes and tab switches. */
+        var tries = 0;
+        var iv = setInterval(function () {
+          sync();
+          if (document.querySelector('footer .grid.grid-cols-2') || ++tries > 80) clearInterval(iv);
+        }, 150);
+
+        var t = null;
+        new MutationObserver(function () {
+          clearTimeout(t);
+          t = setTimeout(sync, 300);
+        }).observe(document.documentElement, { childList: true, subtree: true });
+
+        if (mq.addEventListener) mq.addEventListener('change', sync);
+        else if (mq.addListener) mq.addListener(sync);
       })();
     </script>
   </body>

@@ -22,8 +22,6 @@ import gzip
 import http.server
 import io
 import json
-import urllib.error
-import urllib.request
 import mimetypes
 import os
 import posixpath
@@ -47,115 +45,6 @@ MIN_COMPRESS = 1024
 # Never cached: the shell has to be re-fetched or an update can never reach a
 # client that already installed the old service worker.
 NO_STORE = {"/", "/index.html", "/sw.js"}
-
-
-
-# ---------------------------------------------------------------------------
-# AI endpoints.
-#
-# The app POSTs to /api/ai/{guide-chat,translate,plan-itinerary}. A static host
-# answers POST with 405, which is why the concierge says "Em An is momentarily
-# busy" on GitHub Pages. This proxies those three calls to Gemini using the key
-# in .env.local, so the key stays on the server and never reaches the browser.
-# For the public site the same job is done by worker/inside-hoi-an-ai.js.
-# ---------------------------------------------------------------------------
-
-GEMINI_MODEL = "gemini-3.6-flash"
-GEMINI_URL = ("https://generativelanguage.googleapis.com/v1beta/models/"
-              + GEMINI_MODEL + ":generateContent")
-
-PERSONA = (
-    'You are "Em An", a warm, knowledgeable local guide to Hoi An, Vietnam, '
-    "answering inside the Inside Hoi An app. You know the Ancient Town, Tra Que "
-    "herb village, An Bang beach, Cam Thanh coconut palms and Thanh Ha pottery "
-    "village. Be specific and practical: name real streets, dishes and times of "
-    "day. Cao Lau, white rose dumplings, banh mi, com ga. Mention opening hours "
-    "or the best time to visit when it matters. Keep answers short, two to four "
-    "sentences, unless asked for detail. Never invent prices or confirm bookings."
-)
-
-TRANSLATE_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "translatedText": {"type": "string"},
-        "pronunciation": {"type": "string"},
-        "literalMeaning": {"type": "string"},
-        "culturalNote": {"type": "string"},
-    },
-    "required": ["translatedText"],
-}
-
-_STOP = {
-    "type": "object",
-    "properties": {
-        "name": {"type": "string"},
-        "time": {"type": "string"},
-        "durationMinutes": {"type": "integer"},
-        "description": {"type": "string"},
-        "tip": {"type": "string"},
-    },
-    "required": ["name", "time", "description"],
-}
-
-ITINERARY_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "title": {"type": "string"},
-        "summary": {"type": "string"},
-        "suggestedDepartureTime": {"type": "string"},
-        "totalWalkingMinutes": {"type": "integer"},
-        "totalExperienceMinutes": {"type": "integer"},
-        "totalDistanceMeters": {"type": "integer"},
-        "stops": {"type": "array", "items": _STOP},
-    },
-    "required": ["title", "summary", "stops"],
-}
-
-
-def gemini_key():
-    """Read GEMINI_API_KEY from .env.local. Never logged, never served."""
-    path = os.path.join(BASE, ".env.local")
-    if not os.path.isfile(path):
-        return ""
-    for line in open(path, encoding="utf-8"):
-        if line.strip().startswith("GEMINI_API_KEY"):
-            return line.split("=", 1)[1].strip()
-    return ""
-
-
-def gemini(system, contents, schema=None, timeout=45):
-    key = gemini_key()
-    if not key:
-        raise RuntimeError("GEMINI_API_KEY missing from .env.local")
-    # thinkingLevel "low" matters a lot here: the same question took 35.7s at the
-    # model default and 5.5s at low. A chat that takes half a minute reads as broken.
-    think = {"thinkingLevel": "low"}
-    cfg = {"temperature": 0.8, "maxOutputTokens": 800, "thinkingConfig": think}
-    if schema:
-        cfg = {"temperature": 0.7, "responseMimeType": "application/json",
-               "responseSchema": schema, "thinkingConfig": think}
-    payload = {
-        "contents": contents,
-        "systemInstruction": {"parts": [{"text": system}]},
-        "generationConfig": cfg,
-    }
-    req = urllib.request.Request(
-        GEMINI_URL,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "x-goog-api-key": key},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            data = json.loads(r.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        detail = e.read().decode("utf-8", "replace")[:300]
-        raise RuntimeError("Gemini %s: %s" % (e.code, detail))
-    parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
-    text = "".join(p.get("text", "") for p in parts)
-    if not text:
-        raise RuntimeError("Gemini returned no text")
-    return text
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -243,19 +132,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if self.command != "HEAD":
             self.wfile.write(body)
 
-    # A browser that cancels a request - WebKit does this constantly while it
-    # decides which images it still wants - resets the connection mid-write.
-    # Unhandled, that propagates out of the handler thread and takes the whole
-    # server down, which is how a browser test session kept killing this one.
-    def handle_one_request(self):
-        try:
-            super().handle_one_request()
-        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
-            self.close_connection = True
-
-    def handle_error(self, *args):
-        pass
-
     def _send_json(self, body, status=200):
         self._send(body, "application/json; charset=utf-8", status, cache="no-store")
 
@@ -333,85 +209,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                    varies=varies, extra=extra)
 
     def do_POST(self):
-        path = self.path.split("?", 1)[0]
-        if "/api/ai/" in path:
-            return self._ai(path)
+        # The live app POSTs to /api/ai/* and /api/partners/apply. There is no
+        # backend here, so answer explicitly rather than letting it hang.
         return self._send_json(
             json.dumps({
-                "error": "This is a static local copy. That endpoint needs the real backend.",
-                "path": path,
+                "error": "This is a static local copy. The AI and partner "
+                         "endpoints need the real backend.",
+                "path": self.path.split("?", 1)[0],
             }).encode("utf-8"),
             status=501,
         )
-
-    def _ai(self, path):
-        try:
-            length = int(self.headers.get("Content-Length") or 0)
-            body = json.loads(self.rfile.read(length) or b"{}")
-        except Exception:
-            return self._send_json(
-                json.dumps({"error": "Body must be JSON"}).encode("utf-8"), status=400)
-
-        try:
-            if path.endswith("/guide-chat"):
-                message = (body.get("message") or "").strip()
-                if not message:
-                    return self._send_json(
-                        json.dumps({"error": "message is required"}).encode("utf-8"), status=400)
-                lang = body.get("language") or "en"
-                contents = []
-                for m in (body.get("chatHistory") or [])[-10:]:
-                    if not m or not m.get("text"):
-                        continue
-                    role = "model" if m.get("role") == "assistant" else "user"
-                    contents.append({"role": role, "parts": [{"text": m["text"]}]})
-                contents.append({"role": "user", "parts": [{"text": message}]})
-                system = PERSONA + " Reply in " + ("Vietnamese" if lang == "vi" else "English") + "."
-                reply = gemini(system, contents)
-                return self._send_json(json.dumps({"reply": reply}).encode("utf-8"))
-
-            if path.endswith("/translate"):
-                text = (body.get("text") or "").strip()
-                if not text:
-                    return self._send_json(
-                        json.dumps({"error": "text is required"}).encode("utf-8"), status=400)
-                system = (
-                    "You translate for travellers in Hoi An, Vietnam. Translate from "
-                    + str(body.get("sourceLanguage") or "en") + " to "
-                    + str(body.get("targetLanguage") or "vi")
-                    + ". Give a natural spoken translation, a simple phonetic guide an "
-                    "English speaker can read aloud, the literal meaning, and one short "
-                    "cultural note when it helps. Keep it brief."
-                )
-                out = gemini(system, [{"role": "user", "parts": [{"text": text}]}],
-                             TRANSLATE_SCHEMA)
-                return self._send_json(out.encode("utf-8"))
-
-            if path.endswith("/plan-itinerary"):
-                days = body.get("days") or 1
-                lang = body.get("language") or "en"
-                system = (
-                    PERSONA + " Build a realistic Hoi An itinerary. " + str(days)
-                    + " day(s), vibe: " + str(body.get("vibe") or "balanced")
-                    + ", group: " + str(body.get("group") or "couple")
-                    + ", pace: " + str(body.get("pace") or "moderate")
-                    + ". Use real places and sensible timings, allow for the midday heat, "
-                    "and put the lantern-lit Ancient Town in the evening. Write in "
-                    + ("Vietnamese" if lang == "vi" else "English") + "."
-                )
-                prompt = "Plan %s day(s) in Hoi An." % days
-                out = gemini(system, [{"role": "user", "parts": [{"text": prompt}]}],
-                             ITINERARY_SCHEMA)
-                return self._send_json(out.encode("utf-8"))
-
-            return self._send_json(
-                json.dumps({"error": "Unknown AI endpoint"}).encode("utf-8"), status=404)
-
-        except Exception as exc:
-            # The app shows its own friendly fallback on a non-200, so a clear
-            # message here is for the developer, not the traveller.
-            return self._send_json(
-                json.dumps({"error": str(exc)[:400]}).encode("utf-8"), status=502)
 
     def log_message(self, fmt, *args):
         # One line per request is fine; the default also prints the date twice.

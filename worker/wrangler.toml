@@ -1,0 +1,14 @@
+name = "inside-hoi-an-ai"
+main = "inside-hoi-an-ai.js"
+compatibility_date = "2026-01-01"
+
+[vars]
+# Comma-separated list of sites allowed to call this Worker. Leave blank to allow
+# any origin, which is fine while testing but means anyone can spend your quota.
+ALLOWED_ORIGINS = "https://javier-sysflow.github.io"
+
+# Optional. Defaults to gemini-3.6-flash.
+# GEMINI_MODEL = "gemini-3.6-flash"
+
+# GEMINI_API_KEY is a secret and must NOT be written here. Set it with:
+#   npx wrangler secret put GEMINI_API_KEY
