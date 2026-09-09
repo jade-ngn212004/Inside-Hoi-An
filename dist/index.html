@@ -780,7 +780,64 @@
          300px; the page scrolls a little in landscape and that is the better
          trade. The real landscape cost is the 186px header, which is the brand
          header's wrapping rows and belongs to that design, not to this pass. */
+
+      /* 54. iOS SAFARI: THE MAP WAS ZERO PIXELS TALL.  [phones]
+         A screenshot from a real iPhone, on the right URL and the current build,
+         showed the currency strip flush under the header and the weather panel
+         running straight into the footer - no map, no gap where a map would be.
+         Every emulated test had passed because every one of them ran Blink.
+
+         The map's wrapper is the column's `flex-1` child: `flex: 1 1 0%` with
+         overflow-hidden, whose only child is the map itself at an explicit height.
+         When the column's own height is content-driven, Chrome counts that wrapper
+         as its content (the map's 613px) and the column grows to hold everything.
+         WebKit counts a 0% basis as 0 - and overflow-hidden turns `min-height: auto`
+         into 0 - so the wrapper contributes nothing, the column is sized to the two
+         strips alone, and the wrapper is left with 0px to grow into. The map is
+         still there, at full height, clipped by its own 0px parent. A layout change
+         (collapsing the converter) can flash it for a frame while flex re-resolves,
+         which is exactly what was reported.
+
+         Giving the wrapper an explicit height and taking it out of the grow/shrink
+         negotiation makes its size the same fact in both engines. It is the same
+         expression rule 42 gives the map inside it, so they agree to the pixel.
+         Scoped with :has() to the one wrapper that holds a Leaflet map, so the
+         VR360 panel and the page wrappers are untouched. */
+      @media (max-width: 1023px) {
+        main > div > div.flex-1:has(> div > .leaflet-container) {
+          flex: 0 0 auto;
+          height: calc(100vh - var(--ih-chrome, 232px));
+          height: calc(100dvh - var(--ih-chrome, 232px));
+          min-height: 300px;
+        }
+      }
     </style>
+    <script src="ai-config.js"></script>
+    <script>
+      /* AI ROUTING. The three AI features POST to api/ai/*, relative to the page.
+         On a static host that is a 405, so the app shows its "Em An is momentarily
+         busy" fallback. If ai-config.js sets window.__AI_ENDPOINT, those three calls
+         are redirected to that origin instead; everything else is untouched.
+         Empty endpoint means no change at all, so this is safe to ship unset. */
+      (function () {
+        var base = String(window.__AI_ENDPOINT || '').replace(/\/+$/, '');
+        if (!base) return;
+        var original = window.fetch;
+        window.fetch = function (input, init) {
+          try {
+            var url = typeof input === 'string' ? input : (input && input.url) || '';
+            var at = url.indexOf('api/ai/');
+            if (at !== -1) {
+              var target = base + '/api/ai/' + url.slice(at + 'api/ai/'.length);
+              return typeof input === 'string'
+                ? original.call(window, target, init)
+                : original.call(window, new Request(target, input), init);
+            }
+          } catch (e) { /* fall through to the untouched fetch */ }
+          return original.apply(window, arguments);
+        };
+      })();
+    </script>
   </head>
   <body class="bg-amber-50/40 text-stone-900 antialiased selection:bg-amber-500 selection:text-white">
     <div id="root"></div>

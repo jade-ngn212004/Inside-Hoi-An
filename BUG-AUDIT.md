@@ -1159,6 +1159,45 @@ Inspector, and X's Card Validator each do it on demand.
 *Still true for the AI Studio URL:* sharing `inside-hoi-an.ai.studio` will show no
 image until that deployment gets its own card and tags, which needs the source.
 
+## The map on a real iPhone (defect 29, rule 54)
+
+### 29. On iOS Safari the map was zero pixels tall — FIXED
+
+Two screenshots from an iPhone, on the right URL and the current build, showed the
+currency strip flush under the header with no gap, and the weather panel running
+straight into the footer. Not below the fold, not covered: **absent**.
+
+Reproduced in a real WebKit engine (Playwright's build, iPhone 14 descriptor) against
+the live site: the map's wrapper laid out at **0px**, `main` and its column at 417px -
+the two strips and nothing else - with the map itself rendered underneath at full height
+and clipped by its own 0px parent. Every previous mobile check had passed because every
+one of them ran Blink, which lays this out differently.
+
+The wrapper is the column's `flex-1` child: `flex: 1 1 0%` with `overflow-hidden`, whose
+only child is the map at an explicit height. The column's height is content-driven.
+Chrome counts the wrapper's content (the map's height) when sizing the column, so the
+column grows to hold everything. WebKit counts a 0% basis as 0 - and `overflow-hidden`
+turns `min-height: auto` into 0 - so the wrapper contributes nothing, the column is sized
+to the strips alone, and the wrapper has 0px to grow into. A layout change such as
+collapsing the converter can re-resolve flex for a frame and flash the map, which is
+what the phone showed.
+
+*Fix (rule 54):* the wrapper gets an explicit height - the same expression rule 42 gives
+the map inside it - and `flex: 0 0 auto`, so its size is the same fact in both engines.
+Scoped with `:has()` to the one wrapper holding a Leaflet map.
+
+*Verified in WebKit:* live before, wrapper 0px / column 417px / strip at y=170; local
+after, wrapper 433px / column 850px / strip at y=603, map visible. A sweep of every
+header destination in WebKit found no other container laid out at 0px with content in
+it - the map wrapper was the only one (it is the only `flex-1 overflow-hidden` wrapper
+whose sole child carries an explicit height).
+
+*This changes what the first mobile report meant.* Defect 20 measured the map 78% below
+the fold in Chrome and fixed that; on the reporter's iPhone the map had been missing
+outright for the same underlying reason as this - a WebKit layout difference, not a
+scroll position. From here on, mobile verification runs in both engines; the WebKit
+harness is Playwright with the iPhone 14 descriptor.
+
 ## Not a defect: local-copy limitations
 
 The live site has a real backend. This folder does not, so these are stubbed:
@@ -1184,7 +1223,7 @@ design. The `GEMINI_API_KEY` in `.env.local` is unused by this build.
 
 | File | Change |
 |---|---|
-| `dist/index.html` | Fixes 2-6, 9-15, polish 20-33, brand mark, PWA wiring, performance 35-40, mobile map-first 41-50, map reachability 51-53 |
+| `dist/index.html` | Fixes 2-6, 9-15, polish 20-33, brand mark, PWA wiring, performance 35-40, mobile map-first 41-50, map reachability 51-53, iOS map collapse 54 |
 | `dist/manifest.webmanifest`, `dist/sw.js` | New: PWA manifest and service worker |
 | `dist/brand/`, `dist/icons/`, `dist/favicon.ico`, `dist/apple-touch-icon.png`, `dist/og-card.png` | New: brand assets from InsideHoiAnLogo.png |
 | `serve.py` | Manifest media type, no-store on the service worker; gzip, WebP negotiation, Cache-Control |
