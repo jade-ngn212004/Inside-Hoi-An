@@ -1,0 +1,36 @@
+# Secrets - never commit. .env.local holds GEMINI_API_KEY.
+*.local
+.env
+.env.*
+
+# Dependencies and build caches
+node_modules
+dist-ssr
+
+# NOTE: `dist/` is intentionally NOT ignored.
+# This repository is a working copy of the deployed build, not a source tree, so
+# dist/ IS the project. The upstream Vite template ignored it as build output;
+# that would exclude everything of value here.
+
+# 27MB of duplicated original imagery. The pristine index.html and bundle are kept
+# alongside it so changes can still be diffed against what shipped.
+.original-backup/original-media/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+Thumbs.db

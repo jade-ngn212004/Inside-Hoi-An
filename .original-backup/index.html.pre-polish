@@ -1,0 +1,151 @@
+<!doctype html>
+<!-- Local copy of the deployed Inside Hoi An build, with audit fixes applied. See BUG-AUDIT.md. -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Inside Hoi An — Curated Neighborhood Guide, Map &amp; Food Directory</title>
+    <meta name="description" content="The definitive interactive neighborhood guide, curated food directory, artisan index, and experience booking for Hoi An Ancient Town and surroundings." />
+    <meta property="og:title" content="Inside Hoi An — Curated Neighborhood Guide, Map &amp; Food Directory" />
+    <meta property="og:description" content="The definitive interactive neighborhood guide, curated food directory, artisan index, and experience booking for Hoi An Ancient Town and surroundings." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://inside-hoi-an.ai.studio/" />
+    <meta property="og:image" content="https://inside-hoi-an.ai.studio/images/hoian_lantern_festival_night.jpg" />
+    <meta property="og:image:alt" content="Silk lanterns glowing over Hoi An Ancient Town at night." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://inside-hoi-an.ai.studio/images/hoian_lantern_festival_night.jpg" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/leaflet-1.9.4.css" />
+    <script type="module" crossorigin src="/assets/index-B97Xc7BA.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-PV7nnW8Q.css">
+    <style>
+      /* AUDIT FIX - modal stacking (BUG-AUDIT.md defect 9).
+         Ten overlays render as `.fixed.inset-0.z-50`, but the sticky site header is
+         `.z-[1050]`. The header therefore painted over every open modal and swallowed
+         all clicks in the drawer's top 65px - exactly where the close (X) button sits.
+         Raising the overlays above the header restores the close button, while staying
+         below the one overlay that already ships as `.z-[1200]` so relative order holds. */
+      .fixed.inset-0.z-50 { z-index: 1100; }
+    </style>
+    <style>
+      /* ---- MOBILE USABILITY FIXES (BUG-AUDIT.md defects 11-14) ---------------
+         Applied as an override layer on top of the compiled bundle. Desktop is
+         untouched: every rule sits inside a max-width or pointer:coarse query.
+         Measured at 390x844 with device emulation. */
+
+      @media (max-width: 1023px) {
+        /* 11. The header row is a nowrap flex row whose control cluster is
+           `flex-shrink-0` and 346px wide inside a 390px viewport. That pushed the
+           AI Concierge button, the language toggle and the menu button off-screen
+           and gave the whole page 191px of horizontal scroll. Let the row wrap. */
+        header .flex.items-center.justify-between.h-16 {
+          height: auto;
+          flex-wrap: wrap;
+          row-gap: 0.5rem;
+          padding-top: 0.5rem;
+          padding-bottom: 0.5rem;
+        }
+        header .flex.items-center.gap-2.flex-shrink-0 {
+          flex-shrink: 1;
+          min-width: 0;
+          flex-wrap: wrap;
+        }
+      }
+
+      @media (max-width: 767px) {
+        /* 12. WITHDRAWN. Forcing the weather grid to two columns saved only 27px
+           (the grid has 3 children, not 6) and squeezed each card to 173px, which
+           made the forecast headings and readings overlap. Single column is
+           correct at this width; the height cap in rule 15 reclaims the space
+           instead, without touching layout. */
+
+        /* 13. Type floor. The build ships 8px, 9px and 10px text. This is a guide
+           read outdoors in daylight at arm's length, where that is illegible. */
+        .text-\[8px\], .text-\[9px\], .text-\[9\.5px\] { font-size: 11px; }
+        .text-\[10px\], .text-\[10\.5px\] { font-size: 11.5px; }
+      }
+
+      @media (pointer: coarse) {
+        /* 14. 187 of 188 controls measured under 44px and 42 under the WCAG 2.5.8
+           minimum of 24px. Raise the primary navigation to a real touch size. */
+        header button { min-height: 40px; }
+      }
+
+      @media (max-width: 767px) {
+        /* 15. The map - the app's primary job - sat at y=780 on an 844px screen,
+           leaving 63px of it visible, and the bottom "Map" tab does not scroll to
+           it (verified: scrollY stays 0). The currency and weather strips above it
+           run 137px and 455px. Tighten their padding and cap the weather panel so
+           it scrolls inside itself instead of burying the map. Content is kept,
+           not hidden. The real fix is a map-first mobile layout, which needs source. */
+        [class*="bg-stone-900/95"] > .max-w-7xl { padding-top: .375rem; padding-bottom: .375rem; }
+        [class*="bg-stone-920"] > .max-w-7xl { padding-top: .5rem; padding-bottom: .5rem; }
+        [class*="bg-stone-920"] {
+          max-height: 40vh;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          /* Fade the cut edge so the scroll boundary reads as "more below"
+             rather than as a number sliced in half. */
+          -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+                  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+        }
+      }
+
+      @media (pointer: coarse) {
+        /* 16. The four bottom tabs measured 36px tall, under the 44px comfortable
+           touch size. They are the app's primary navigation. */
+        .fixed.bottom-0 button { min-height: 44px; }
+      }
+
+      /* 17. WITHDRAWN. The four map mode buttons stack from the map top and run
+           past the fold, so three of four are unreachable on a phone. There is no
+           free band to move them to: the search bar occupies y=671-725, the filter
+           chip row 735-769, and the bottom nav starts at 791. Laying them out as a
+           horizontal row put them underneath the filter chips, which was worse than
+           leaving them alone. Four labelled pills do not fit a 390px phone at all.
+           NEEDS SOURCE: collapse them to one 44px icon button that expands, or move
+           the modes into the bottom sheet. */
+
+      /* 19. WITHDRAWN. "Banks & ATMs" renders as a bare 36px pin on mobile, but
+           not because it is being squeezed - flex-shrink is already 0. The build
+           hides the label below the sm breakpoint on purpose. The real defect is
+           that the resulting icon-only button has no accessible name, and CSS
+           cannot add one. NEEDS SOURCE: add an aria-label. */
+
+      /* 18. The VR360 FAB sets white 12px bold on an amber-to-rose gradient, which
+         measures 2.1:1 against the light end - far below the 4.5:1 AA floor. Darkening
+         the ramp keeps the brand colours and clears AA across the button's full width.
+         Scoped to the map FAB stack so the main AI Concierge CTA is left alone. */
+      .absolute.top-20.right-4 .from-amber-500.to-rose-600 {
+        background-image: linear-gradient(to right, #b45309, #9f1239);
+      }
+    </style>
+  </head>
+  <body class="bg-amber-50/40 text-stone-900 antialiased selection:bg-amber-500 selection:text-white">
+    <div id="root"></div>
+    <script>
+      /* AUDIT SHIM - Escape to close (BUG-AUDIT.md defect 10).
+         The app binds no Escape handler, so overlays are pointer-only. This activates
+         the topmost open overlay's own close button. Overlays are located by computed
+         z-index rather than by class name, so no CSS escaping is involved. Local-copy
+         shim keyed to this build's X icon path; the real fix belongs in the dialog. */
+      addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape') return;
+        var overlays = [].filter.call(
+          document.querySelectorAll('.fixed.inset-0'),
+          function (el) { return (parseInt(getComputedStyle(el).zIndex, 10) || 0) >= 50; }
+        );
+        var top = overlays[overlays.length - 1];
+        if (!top) return;
+        var btn = [].filter.call(top.querySelectorAll('button'), function (b) {
+          var p = b.querySelector('svg path');
+          return p && p.getAttribute('d') === 'M18 6 6 18';
+        })[0];
+        if (btn) btn.click();
+      });
+    </script>
+  </body>
+</html>

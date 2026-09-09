@@ -1,0 +1,7 @@
+{
+  "name": "Inside Hoi An",
+  "description": "The definitive interactive neighborhood guide, curated food directory, artisan index, and experience booking for Hoi An Ancient Town and surroundings.",
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

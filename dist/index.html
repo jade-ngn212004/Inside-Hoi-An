@@ -1,0 +1,718 @@
+<!doctype html>
+<!-- Local copy of the deployed Inside Hoi An build, with audit fixes applied. See BUG-AUDIT.md. -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Inside Hoi An — Curated Neighborhood Guide, Map &amp; Food Directory</title>
+    <meta name="description" content="The definitive interactive neighborhood guide, curated food directory, artisan index, and experience booking for Hoi An Ancient Town and surroundings." />
+    <meta property="og:title" content="Inside Hoi An — Curated Neighborhood Guide, Map &amp; Food Directory" />
+    <meta property="og:description" content="The definitive interactive neighborhood guide, curated food directory, artisan index, and experience booking for Hoi An Ancient Town and surroundings." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://inside-hoi-an.ai.studio/" />
+    <meta property="og:image" content="https://inside-hoi-an.ai.studio/og-card.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="Inside Hoi An" />
+    <meta property="og:image:alt" content="Inside Hoi An - curated heritage guide, map and food directory." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://inside-hoi-an.ai.studio/og-card.png" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#1c1917" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Inside Hoi An" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- PERF 35. The font stylesheet was render-blocking: nothing painted until
+         Google returned it. It carries display=swap already, so the page is
+         designed to paint in the fallback face and swap - it just never got the
+         chance. Loading it with media="print" lets the parser move on and flips
+         it to "all" on load. Same request, same faces, ~1 fewer round trip on
+         the critical path. The axis list is unchanged. -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap" rel="stylesheet"></noscript>
+    <link rel="stylesheet" href="/assets/leaflet-1.9.4.css" />
+    <script type="module" crossorigin src="/assets/index-B97Xc7BA.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-PV7nnW8Q.css">
+    <style>
+      /* AUDIT FIX - modal stacking (BUG-AUDIT.md defect 9).
+         Ten overlays render as `.fixed.inset-0.z-50`, but the sticky site header is
+         `.z-[1050]`. The header therefore painted over every open modal and swallowed
+         all clicks in the drawer's top 65px - exactly where the close (X) button sits.
+         Raising the overlays above the header restores the close button, while staying
+         below the one overlay that already ships as `.z-[1200]` so relative order holds. */
+      .fixed.inset-0.z-50 { z-index: 1100; }
+    </style>
+    <style>
+      /* ---- MOBILE USABILITY FIXES (BUG-AUDIT.md defects 11-14) ---------------
+         Applied as an override layer on top of the compiled bundle. Desktop is
+         untouched: every rule sits inside a max-width or pointer:coarse query.
+         Measured at 390x844 with device emulation. */
+
+      @media (max-width: 1023px) {
+        /* 11. The header row is a nowrap flex row whose control cluster is
+           `flex-shrink-0` and 346px wide inside a 390px viewport. That pushed the
+           AI Concierge button, the language toggle and the menu button off-screen
+           and gave the whole page 191px of horizontal scroll. Let the row wrap. */
+        header .flex.items-center.justify-between.h-16 {
+          height: auto;
+          flex-wrap: wrap;
+          row-gap: 0.5rem;
+          padding-top: 0.5rem;
+          padding-bottom: 0.5rem;
+        }
+        header .flex.items-center.gap-2.flex-shrink-0 {
+          flex-shrink: 1;
+          min-width: 0;
+          flex-wrap: wrap;
+        }
+      }
+
+      @media (max-width: 767px) {
+        /* 12. WITHDRAWN. Forcing the weather grid to two columns saved only 27px
+           (the grid has 3 children, not 6) and squeezed each card to 173px, which
+           made the forecast headings and readings overlap. Single column is
+           correct at this width; the height cap in rule 15 reclaims the space
+           instead, without touching layout. */
+
+        /* 13. Type floor. The build ships 8px, 9px and 10px text. This is a guide
+           read outdoors in daylight at arm's length, where that is illegible. */
+        .text-\[8px\], .text-\[9px\], .text-\[9\.5px\] { font-size: 11px; }
+        .text-\[10px\], .text-\[10\.5px\] { font-size: 11.5px; }
+      }
+
+      @media (pointer: coarse) {
+        /* 14. 187 of 188 controls measured under 44px and 42 under the WCAG 2.5.8
+           minimum of 24px. Raise the primary navigation to a real touch size. */
+        header button { min-height: 40px; }
+      }
+
+      @media (max-width: 767px) {
+        /* 15. The map - the app's primary job - sat at y=780 on an 844px screen,
+           leaving 63px of it visible, and the bottom "Map" tab does not scroll to
+           it (verified: scrollY stays 0). The currency and weather strips above it
+           run 137px and 455px. Tighten their padding and cap the weather panel so
+           it scrolls inside itself instead of burying the map. Content is kept,
+           not hidden. The real fix is a map-first mobile layout, which needs source. */
+        [class*="bg-stone-900/95"] > .max-w-7xl { padding-top: .375rem; padding-bottom: .375rem; }
+        [class*="bg-stone-920"] > .max-w-7xl { padding-top: .5rem; padding-bottom: .5rem; }
+        [class*="bg-stone-920"] {
+          max-height: 40vh;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          /* Fade the cut edge so the scroll boundary reads as "more below"
+             rather than as a number sliced in half. */
+          -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+                  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+        }
+      }
+
+      @media (pointer: coarse) {
+        /* 16. The four bottom tabs measured 36px tall, under the 44px comfortable
+           touch size. They are the app's primary navigation. */
+        .fixed.bottom-0 button { min-height: 44px; }
+      }
+
+      /* 17. WITHDRAWN. The four map mode buttons stack from the map top and run
+           past the fold, so three of four are unreachable on a phone. There is no
+           free band to move them to: the search bar occupies y=671-725, the filter
+           chip row 735-769, and the bottom nav starts at 791. Laying them out as a
+           horizontal row put them underneath the filter chips, which was worse than
+           leaving them alone. Four labelled pills do not fit a 390px phone at all.
+           NEEDS SOURCE: collapse them to one 44px icon button that expands, or move
+           the modes into the bottom sheet. */
+
+      /* 19. WITHDRAWN. "Banks & ATMs" renders as a bare 36px pin on mobile, but
+           not because it is being squeezed - flex-shrink is already 0. The build
+           hides the label below the sm breakpoint on purpose. The real defect is
+           that the resulting icon-only button has no accessible name, and CSS
+           cannot add one. NEEDS SOURCE: add an aria-label. */
+
+      /* 18. The VR360 FAB sets white 12px bold on an amber-to-rose gradient, which
+         measures 2.1:1 against the light end - far below the 4.5:1 AA floor. Darkening
+         the ramp keeps the brand colours and clears AA across the button's full width.
+         Scoped to the map FAB stack so the main AI Concierge CTA is left alone. */
+      .absolute.top-20.right-4 .from-amber-500.to-rose-600 {
+        background-image: linear-gradient(to right, #b45309, #9f1239);
+      }
+    </style>
+    <style>
+      /* ============================================================================
+         VISUAL POLISH PASS (BUG-AUDIT.md, rules 20-33)
+         Produced by a six-lens design survey of the running build, synthesised into
+         one restrained pass, then verified. The governing idea: this app's identity
+         is not broken, it is UNDER-RENDERED. Most rules below restore something the
+         build already declares but the Tailwind compiler silently dropped -
+         a font that is loaded but shadowed, colour tokens that were never generated,
+         a padding value that is not on the scale. Nothing here introduces a new
+         aesthetic; the amber-on-stone lantern identity is preserved throughout.
+         Rule 33 is last on purpose - reduced-motion must win.
+         ============================================================================ */
+
+      /* 20. Render the body font the build already loads  [all]
+         Visible change: Every word of body copy on the page changes typeface — currently Segoe UI on Windows / Roboto on Android, after this the humanist Be Vietnam Pro the design specified. Vietnamese tone marks stop looking bolted on. The event card description shows its full sentence instead of stopping mid-clause. */
+      :root{
+        --font-sans:"Be Vietnam Pro",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+                    "Helvetica Neue",Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji";
+      }
+
+      /* Required companion: Be Vietnam Pro runs ~5% wider, which tips the event
+         description's line-clamp-2 from a full fit into hiding its last ~8 words.
+         Verified: scrollHeight 39 -> 59 with clamp 2, and 59 == clientHeight at 3. */
+      .line-clamp-2{ -webkit-line-clamp:3; }
+
+      /* 21. Stop the light ancestor palette leaking through the system chrome  [all]
+         Visible change: The cream-white 6px stripe down the right edge of every desktop screen becomes a muted lantern-gold thumb on an invisible track. Selecting text to copy an address gives near-black on amber instead of white-on-amber ghost lettering. Panning the map no longer flashes pale grey tiles. Rubber-band overs */
+      html{ color-scheme:dark; background-color:#0c0a09; }
+      body[class]{ background-color:#0c0a09; }
+      body[class] ::selection, body[class]::selection{ background-color:#f59e0b; color:#0c0a09; }
+      ::-webkit-scrollbar-track{ background:transparent; }
+      ::-webkit-scrollbar-thumb{ background:rgba(180,140,90,.55); }
+      ::-webkit-scrollbar-thumb:hover{ background:rgba(245,158,11,.8); }
+      .leaflet-container{ background-color:#0c0a09; }
+
+      /* 22. Define the three stone tokens that were never compiled  [all]
+         Visible change: The four forecast cells and the Guild Driver rows stop being hollow outlines and get a visible surface one step lighter than the card behind them. The five currency chips and six Tickets rows lose their near-white capsule outlines and become quiet panels, so the amber content inside them reads first */
+      :root{ --ih-stone-750:oklch(32.1% .0085 51); --ih-stone-850:oklch(24.2% .0065 45); }
+      .bg-stone-850{ background-color:var(--ih-stone-850); }
+      [class~="hover:bg-stone-850"]:hover{ background-color:var(--ih-stone-850); }
+      [class~="hover:bg-stone-750"]:hover{ background-color:var(--ih-stone-750); }
+      .border-stone-750{ border-color:var(--ih-stone-750); }
+      .border-stone-850{ border-color:var(--ih-stone-850); }
+
+      /* 23. Give the seven badges the vertical padding `py-0.2` never generated  [all]
+         Visible change: The `360°`, `HOT`, `LIVE`, `INDICATIVE DEMO RATE` and booking-count badges stop looking like text jammed against a border and become properly inset pills. Most obvious on the mobile currency strip, where the demo-rate label's capitals currently touch their own amber rim. */
+      [class*="py-0.2"]{ padding-top:.125rem; padding-bottom:.125rem; }
+
+      /* 24. One page rail instead of four  [all]
+         Visible change: The lantern wordmark, the green $ currency icon and the amber `Hoi An Weather` pill line up on one left edge instead of a three-step stagger. On mobile the amber `Map` pill stops hanging 8px left of everything below it. */
+      header .max-w-7xl,
+      header > [class*="overflow-x-auto"]{ padding-left:1rem; padding-right:1rem; }
+
+      /* 25. Give desktop the micro-type floor phones already got  [desktop-only]
+         Visible change: 58 rating stars and a dozen micro-labels that currently render at 8–9px on a 1440px screen jump to 11px and become readable at normal viewing distance. The rest of the page does not move — total page growth for the entire pass is 3px. */
+      @media (min-width:768px){
+        [class~="text-[8px]"],[class~="text-[9px]"],[class~="text-[9.5px]"]{ font-size:11px; }
+      }
+
+      /* 26. Track the capitals, and stop tightening the serif  [all]
+         Visible change: `INSIDE HOI AN` stops looking like a compressed logo — the jammed O and I in `HOI` open up and it reads as heritage signage. `INDICATIVE DEMO RATE`, `ADMISSION`, `UNESCO 2026` and the Vietnamese `TỶ GIÁ THAM KHẢO (DEMO)` gain enough air that their tone marks stop fusing with the letterforms. The foo */
+      .uppercase{ letter-spacing:.06em; }
+      header .font-display.font-black{ letter-spacing:.03em; }
+      h3.tracking-tight{ letter-spacing:0; }
+
+      /* 27. Promo badges leave the emergency red and join the app's own chip idiom  [all]
+         Visible change: The bright pink `360°` and `HOT` pills in the header, and the four red pills in the mobile nav strip, become amber-tinted chips matching the GUIDE badge beside them. The header goes from three competing badge styles to one, and after this the only red left above the fold is the SOS button. */
+      [class*="py-0.2"][class*="leading-tight"],
+      [class*="bg-rose-600"][class*="px-1 rounded-full"]{
+        background-image:none;
+        background-color:rgba(245,158,11,.18);
+        color:#fcd34d;
+        box-shadow:inset 0 0 0 1px rgba(245,158,11,.38);
+      }
+
+      /* 28. One red, and it clears AA continuously  [all]
+         Visible change: The SOS pill goes from a bright pink-red that half-fades twice per second to a deeper crimson with a steady, shallower heartbeat, and the word `Help` stops washing out on the light end of the gradient. The `5` on Safety Alerts shifts to the same red, so the app's two safety signals finally match. */
+      @keyframes ih-sos-beat{ 0%,100%{opacity:1} 50%{opacity:.85} }
+      #btn-header-sos{
+        background-image:linear-gradient(to right,#be123c 0%,#b91c1c 50%,#9f1239 100%);
+        animation:ih-sos-beat 2.2s cubic-bezier(.4,0,.6,1) infinite;
+      }
+      #btn-header-sos:hover{
+        background-image:linear-gradient(to right,#d31447 0%,#cc2020 50%,#b21442 100%);
+      }
+      [class*="bg-rose-600"][class*="w-4 h-4"]{ background-color:#be123c; }
+
+      /* 29. The bottom tab bar becomes the header's mirror image  [all]
+         Visible change: The white bar at the bottom of every screen becomes near-black with a warm amber hairline, matching the header — the app stops looking like two products stitched together. The current tab changes from a barely-visible grey pill to an amber-tinted one with bold amber-300 text. On a phone the four tab */
+      .sticky.bottom-0{
+        background-color:rgba(28,25,23,.96);      /* stone-900/96 - the header is stone-900/98 */
+        border-top-color:rgba(120,53,15,.5);      /* amber-900/50 - the header's border-b, inverted */
+      }
+      .sticky.bottom-0 [class~="text-stone-600"]{ color:#d6d3d1; }
+      .sticky.bottom-0 [class~="text-stone-950"]{ color:#fcd34d; }
+      .sticky.bottom-0 [class~="bg-stone-100"]{
+        background-color:rgba(245,158,11,.16);
+        --tw-ring-color:rgba(245,158,11,.45);
+      }
+      .sticky.bottom-0 button[class*="ring-stone-300"]{ font-weight:700; }
+      .sticky.bottom-0 [class*="hover:bg-stone-50"]:hover{ background-color:rgba(255,255,255,.07); }
+      .sticky.bottom-0 [class*="hover:text-stone-900"]:hover{ color:#fafaf9; }
+      @media (max-width:767px){ .sticky.bottom-0 button{ font-size:13px; } }
+      @media (pointer:coarse){ .sticky.bottom-0 button{ min-height:44px; } }
+
+      /* 30. Fade the six hidden scrollers instead of slicing labels mid-word  [all]
+         Visible change: The header nav, the map filter chips, the mobile nav pills and the currency strip stop ending in a hard vertical cut through a half-word and instead fade out over the last 34px, so it reads as 'more this way'. Most visible on the desktop header, where 613px of the app's own menu is currently invisib */
+      [class*="overflow-x-auto"].no-scrollbar:not([class*="overflow-y-auto"]){
+        -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 34px),rgba(0,0,0,.12));
+                mask-image:linear-gradient(to right,#000 calc(100% - 34px),rgba(0,0,0,.12));
+      }
+      @media (max-width:767px){
+        [class*="md:overflow-y-auto"][class*="overflow-x-auto"].no-scrollbar{
+          -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 34px),rgba(0,0,0,.12));
+                  mask-image:linear-gradient(to right,#000 calc(100% - 34px),rgba(0,0,0,.12));
+        }
+      }
+
+      /* 31. Restore the entrance animation the build asks for  [all]
+         Visible change: The AI Concierge drawer, the SOS emergency panel and every toast stop teleporting into existence and fade in over 200ms. */
+      @media (prefers-reduced-motion:no-preference){
+        @keyframes ih-fade{ from{opacity:0} to{opacity:1} }
+        .animate-fade-in,.animate-in{ animation:ih-fade .2s ease-out both; }
+      }
+
+      /* 32. Give the app its own focus ring, in amber  [all]
+         Visible change: Tabbing through the app draws a 2px amber ring offset from each control, instead of the current heavy black box on light surfaces and white box on dark ones. The map search field, which today shows nothing at all on keyboard focus, gets one. */
+      :focus-visible:focus-visible{ outline:2px solid #f59e0b; outline-offset:2px; }
+      .min-w-max :focus-visible:focus-visible{ outline-color:#b45309; }
+      .leaflet-container:focus-visible:focus-visible{ outline-offset:-3px; }
+
+      /* 33. Honour prefers-reduced-motion (last in the sheet, so it wins)  [all]
+         Visible change: For a viewer with 'reduce motion' set at OS level, the pulsing SOS button, the ping dot and every transition stop moving; for everyone else, nothing changes at all. */
+      @media (prefers-reduced-motion:reduce){
+        *,*::before,*::after{
+          animation-duration:.01ms !important;
+          animation-iteration-count:1 !important;
+          transition-duration:.01ms !important;
+          scroll-behavior:auto !important;
+        }
+      }
+
+    </style>
+    <style>
+      /* 34. BRAND MARK. The header tile rendered a lantern emoji inside a dark
+         square; then the logo's illustration inside its own cream tile. The cream
+         read as a light box pasted onto a near-black header - prominent, but foreign.
+         So the artwork is now cut out of its cream ground (background removed by
+         flood fill from the edges, which preserves the white linework inside the
+         drawing) and sits directly on the header. That lets it be much larger without
+         introducing a bright block: the amber sun and orange lantern carry the mark,
+         and they are already the app's own accent colours.
+         The author's amber-to-rose ring is dropped with it - the artwork no longer
+         needs a container, and the polish pass reserved rose for SOS.
+         56px tall on desktop, stepping down to 44px on phones so the wrapped mobile
+         header does not grow and eat the vertical space the map fought for. */
+      header .w-10.h-10.rounded-xl {
+        width: 72px;
+        height: 56px;
+        padding: 0;
+        overflow: visible;
+        background-image: none;
+        background-color: transparent;
+      }
+      header .w-10.h-10.rounded-xl > div {
+        background-color: transparent;
+        border-radius: 0;
+        background-image: url("/brand/logo-art.png");
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
+      }
+      header .w-10.h-10.rounded-xl > div > span { font-size: 0; }
+
+      @media (max-width: 767px) {
+        header .w-10.h-10.rounded-xl { width: 56px; height: 44px; }
+      }
+
+      /* 34b. WORDMARK. The header set "INSIDE HOI AN" as plain amber serif text, which
+         threw away the logo's own designed wordmark: the O is a wave roundel and the A
+         holds the Japanese Covered Bridge, Hoi An's own landmark. That drawing is
+         recoloured from its dark green to the app's amber and swapped in as a background
+         image, so the mark and the wordmark now come from the same artwork.
+         The text stays in the DOM - only its colour is transparent - so screen readers,
+         search engines and copy/paste all still see "INSIDE HOI AN".
+         42px lets the two-line lockup read; the tagline below still fits inside the
+         65px header (block height 55px, measured, nothing clipped). */
+      header .font-display.font-black {
+        color: transparent;
+        display: inline-block;
+        width: 119px;
+        height: 38px;
+        background-image: url("/brand/wordmark-amber.png");
+        background-size: contain;
+        background-position: left center;
+        background-repeat: no-repeat;
+      }
+
+      /* 34c. The tagline carried a -2px top margin, tuned for the old text wordmark
+         whose 28px line box left ~5px of internal leading below the glyphs. An image
+         has no such leading, so that negative margin pulled "Curated Heritage Guide &
+         Map" into the underside of HOI AN - measured at -2px, i.e. overlapping.
+         Give it real separation instead. Block height 57px inside the 65px header. */
+      header p.font-light { margin-top: 4px; }
+
+      /* 34d. The GUIDE pill is dropped. The logo's own wordmark now says what the
+         product is, so a second amber chip repeating it next to the name was noise -
+         and the polish pass had already argued for fewer badges competing at once. */
+      header .font-display.font-black + span { display: none; }
+
+      @media (max-width: 767px) {
+        header .font-display.font-black { width: 101px; height: 32px; }
+        header p.font-light { margin-top: 3px; }
+      }
+
+      /* 35. HEADER BREATHING ROOM. The header row is a fixed `h-16` (64px) and the brand
+         mark is 56px tall, which left 4px above it and 5px below - the logo was almost
+         touching the top of the browser. Symmetric padding on the row takes that to 13px
+         above and 14px below, which matches the 12px the wrapped mobile header already
+         had. Scoped to 1024 and up, where the header is the single tall row; below that
+         it already wraps with its own padding and does not need it. */
+      @media (min-width: 1024px) {
+        header .max-w-7xl > div {
+          height: auto;
+          padding-top: 8px;
+          padding-bottom: 8px;
+        }
+      }
+
+
+
+
+    </style>
+    <style>
+      /* ============================================================================
+         PERFORMANCE PASS (rules 36-40)
+         Measured with Chrome at 4x CPU throttle before writing any of this. The
+         app's main thread was busy 44s of a 70s load, and 76% of that time was
+         inside the compositor - not in app code. These five rules go after that
+         paint cost. None of them changes a colour, a size or a position.
+         ============================================================================ */
+
+      /* 36. Drop the blur behind surfaces that are already opaque  [all]
+         The header is bg-stone-900/98, the bottom tab bar and map chrome are /95,
+         and the 1152x427 panel is bg-stone-950/95 - every one of them also carries
+         backdrop-blur. At 95-98% opacity there is nothing legible behind them to
+         blur, but the compositor still re-blurs the full surface on every frame
+         that scrolls under it. Removing it is invisible and it is the single
+         biggest paint win in the app. Blur is kept on genuinely translucent
+         surfaces, which are all small. */
+      [class*="/90"][class*="backdrop-blur"],
+      [class*="/95"][class*="backdrop-blur"],
+      [class*="/98"][class*="backdrop-blur"] {
+        -webkit-backdrop-filter: none;
+                backdrop-filter: none;
+      }
+
+      /* 36b. Close the 2-5% gap the blur was hiding  [all]
+         The blur was doing one thing worth keeping: it smeared the sliver of page
+         showing through at 95-98% opacity into an unreadable wash. Without it that
+         sliver is sharp, and on the bottom bar you can read the event headline
+         through it. These five surfaces are the full-width pinned chrome, so they
+         go fully opaque in the colour they were already 95-98% of. Everything
+         smaller keeps its translucency: at chip size the difference between a
+         5% sharp bleed and a 5% blurred one is not visible.
+         Values are the build's own tokens - stone-900 #1c1917, stone-950 #0c0a09. */
+      header[class*="bg-stone-900/98"]                     { background-color: #1c1917; }
+      [class*="bg-stone-900/95"][class*="border-b"]        { background-color: #1c1917; }
+      .sticky.bottom-0[class*="backdrop-blur"]             { background-color: #1c1917; }
+      [class*="bg-stone-950/95"][class*="rounded-3xl"]     { background-color: #0c0a09; }
+      [class*="bg-white/95"][class*="rounded-2xl"][class*="flex-1"] { background-color: #fff; }
+
+      /* 37. `transition-all` becomes Tailwind's own default transition list  [all]
+         156 elements ship transition-property:all, so every hover also animates
+         width, height, padding and top - each of which forces a re-layout of the
+         subtree mid-animation. This is exactly the property list Tailwind's plain
+         `transition` utility uses: everything that can be painted or composited,
+         nothing that moves other boxes. Hover states look identical; they stop
+         dragging layout along with them. */
+      .transition-all {
+        transition-property:
+          color, background-color, border-color, text-decoration-color, fill, stroke,
+          opacity, box-shadow, transform, filter, -webkit-backdrop-filter, backdrop-filter;
+      }
+
+      /* 38. Skip the footer until it is scrolled to  [all]
+         The footer is 866px of a 2120px document and starts well below the fold.
+         content-visibility lets the browser skip its layout, paint and its share
+         of the always-running pulse animations until it approaches the viewport.
+         The intrinsic size keeps the scrollbar honest so nothing jumps. */
+      footer {
+        content-visibility: auto;
+        contain-intrinsic-size: auto 866px;
+      }
+
+      /* 39. Fence the map off from the rest of the page  [all]
+         Leaflet mutates 88 marker elements on every pan and zoom. Without
+         containment each of those invalidations is free to walk back out into the
+         page and re-layout the document around it. */
+      .leaflet-container {
+        contain: layout paint;
+      }
+
+      /* 40. Stop off-screen marker art from being decoded at full size  [all]
+         Markers are 40x40. Their images are now 160px files (see __ihT in the
+         bundle); this keeps the browser from over-eagerly rasterising them at
+         layer resolution when the map is zoomed. */
+      .leaflet-marker-icon img {
+        content-visibility: auto;
+        contain-intrinsic-size: 40px 40px;
+      }
+    </style>
+  </head>
+  <body class="bg-amber-50/40 text-stone-900 antialiased selection:bg-amber-500 selection:text-white">
+    <div id="root"></div>
+    <script>
+      /* AUDIT SHIM - Escape to close (BUG-AUDIT.md defect 10).
+         The app binds no Escape handler, so overlays are pointer-only. This activates
+         the topmost open overlay's own close button. Overlays are located by computed
+         z-index rather than by class name, so no CSS escaping is involved. Local-copy
+         shim keyed to this build's X icon path; the real fix belongs in the dialog. */
+      addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape') return;
+        var overlays = [].filter.call(
+          document.querySelectorAll('.fixed.inset-0'),
+          function (el) { return (parseInt(getComputedStyle(el).zIndex, 10) || 0) >= 50; }
+        );
+        var top = overlays[overlays.length - 1];
+        if (!top) return;
+        var btn = [].filter.call(top.querySelectorAll('button'), function (b) {
+          var p = b.querySelector('svg path');
+          return p && p.getAttribute('d') === 'M18 6 6 18';
+        })[0];
+        if (btn) btn.click();
+      });
+    </script>
+    <script>
+      /* PWA: register the service worker. Kept out of the bundle so it can be
+         removed by deleting this block and /sw.js. Failure is non-fatal - the app
+         works exactly as before without it. */
+      if ('serviceWorker' in navigator) {
+        addEventListener('load', function () {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
+        });
+      }
+    </script>
+    <script>
+      /* PAYMENT MARKS (see dist/brand/pay/README.txt).
+         The "Accepted Payment Methods" strip renders each method as a brand-coloured
+         dot plus its name. This upgrades the dot to the brand's real mark for any
+         method listed in /brand/pay/marks.json, and changes nothing otherwise.
+
+         It reads one manifest rather than probing for each file. Probing cost a 404
+         per missing mark - 18 console errors in an app that otherwise logs none. The
+         dev server generates the manifest from the folder, so locally you only have
+         to drop a file in; for static hosting, list it in marks.json. */
+      (function () {
+        var LABEL_TO_ID = {
+          'VISA': 'visa', 'Mastercard': 'mastercard', 'JCB': 'jcb',
+          'Pay': 'apple_pay', 'G Pay': 'google_pay', 'PayPal': 'paypal',
+          'Payoo': 'payoo', 'MoMo': 'momo', 'VNPay-QR': 'vnpay',
+          'VietQR / Napas': 'vietqr'
+        };
+        var NAMES = {
+          visa: 'Visa', mastercard: 'Mastercard', jcb: 'JCB', apple_pay: 'Apple Pay',
+          google_pay: 'Google Pay', paypal: 'PayPal', payoo: 'Payoo', momo: 'MoMo',
+          vnpay: 'VNPay', vietqr: 'VietQR / Napas'
+        };
+        var index = null;
+
+        function upgrade() {
+          if (!index) return;
+          var dots = document.querySelectorAll('span.w-2.h-2.rounded-full:not([data-pay-mark])');
+          for (var i = 0; i < dots.length; i++) {
+            var dot = dots[i];
+            var badge = dot.parentElement;
+            if (!badge) continue;
+            var id = LABEL_TO_ID[(badge.textContent || '').trim()];
+            if (!id) continue;
+            dot.setAttribute('data-pay-mark', id);
+            var src = index[id];
+            if (!src) continue;
+            var img = document.createElement('img');
+            img.src = src;
+            img.alt = '';
+            img.setAttribute('aria-hidden', 'true');
+            img.style.cssText = 'height:14px;width:auto;max-width:30px;display:block;flex:0 0 auto;object-fit:contain';
+            dot.replaceWith(img);
+            if (!badge.getAttribute('aria-label')) badge.setAttribute('aria-label', NAMES[id]);
+          }
+        }
+
+        function boot(map) {
+          index = map || {};
+          upgrade();
+          var t = null;
+          new MutationObserver(function () {
+            clearTimeout(t); t = setTimeout(upgrade, 120);
+          }).observe(document.documentElement, { childList: true, subtree: true });
+        }
+
+        fetch('/brand/pay/marks.json', { cache: 'no-store' })
+          .then(function (r) { return r.ok ? r.json() : { marks: [] }; })
+          .then(function (d) {
+            var map = {};
+            (d && d.marks ? d.marks : []).forEach(function (m) { if (m && m.id && m.src) map[m.id] = m.src; });
+            boot(map);
+          })
+          .catch(function () { boot({}); });
+      })();
+    </script>
+    <script>
+      /* INSTALL HINT. A single dismissible chip that teaches the one thing a visitor
+         cannot discover on their own: that this is installable. Deliberately minimal -
+         one pill above the bottom nav, not a banner, and it never appears when it would
+         be useless: not once installed, not after it has been dismissed, and not in a
+         browser that offers no install path.
+
+         Chrome and Edge fire beforeinstallprompt, so the chip drives the real prompt.
+         iOS Safari has no such event, so there it explains the Share > Add to Home
+         Screen route instead, which is the only way in on that platform.
+         Test hook: window.__installChip() forces it to render. */
+      (function () {
+        var KEY = 'ih-install-dismissed';
+        var deferred = null, chip = null;
+
+        function installed() {
+          return (matchMedia && matchMedia('(display-mode: standalone)').matches) ||
+                 navigator.standalone === true;
+        }
+        function isIOS() {
+          var ua = navigator.userAgent;
+          return /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+        }
+        function vietnamese() {
+          var b = [].filter.call(document.querySelectorAll('header button'), function (x) {
+            var t = (x.textContent || '').trim(); return t === 'EN' || t === 'VI';
+          })[0];
+          return b ? (b.textContent || '').trim() === 'VI' : false;
+        }
+        function dismissed() {
+          try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; }
+        }
+        function remember() {
+          try { localStorage.setItem(KEY, '1'); } catch (e) {}
+        }
+
+        function build(mode) {
+          if (chip || installed() || dismissed()) return;
+          var vi = vietnamese();
+          var label = mode === 'ios'
+            ? (vi ? 'Thêm vào Màn hình chính' : 'Add to Home Screen')
+            : (vi ? 'Cài đặt ứng dụng' : 'Install app');
+          var help = vi ? 'Nhấn Chia sẻ, rồi "Thêm vào MH chính"'
+                        : 'Tap Share, then "Add to Home Screen"';
+
+          chip = document.createElement('div');
+          chip.setAttribute('role', 'region');
+          chip.setAttribute('aria-label', vi ? 'Cài đặt ứng dụng' : 'Install this app');
+          chip.style.cssText =
+            'position:fixed;right:12px;bottom:calc(70px + env(safe-area-inset-bottom,0px));' +
+            'z-index:900;display:flex;align-items:center;gap:8px;' +
+            'padding:8px 10px 8px 12px;border-radius:14px;' +
+            'background:rgba(28,25,23,.96);border:1px solid rgba(245,158,11,.38);' +
+            'box-shadow:0 8px 24px rgba(0,0,0,.45);backdrop-filter:blur(6px);' +
+            'font:600 12.5px/1.25 inherit;color:#fcd34d;max-width:min(280px,calc(100vw - 24px));';
+
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.style.cssText =
+            'display:flex;align-items:center;gap:8px;background:none;border:0;padding:0;margin:0;' +
+            'color:inherit;font:inherit;cursor:pointer;text-align:left;min-height:44px;';
+          var icon = document.createElement('img');
+          icon.src = '/brand/logo-art.png'; icon.alt = ''; icon.setAttribute('aria-hidden','true');
+          icon.style.cssText = 'height:22px;width:auto;flex:0 0 auto;';
+          var text = document.createElement('span');
+          text.textContent = label;
+          btn.appendChild(icon); btn.appendChild(text);
+
+          var hint = document.createElement('div');
+          hint.textContent = help;
+          hint.style.cssText = 'display:none;font-weight:400;color:#d6d3d1;font-size:11.5px;margin-top:4px;';
+
+          var close = document.createElement('button');
+          close.type = 'button';
+          close.setAttribute('aria-label', vi ? 'Đóng' : 'Dismiss');
+          close.textContent = '×';
+          close.style.cssText =
+            'background:none;border:0;color:#a8a29e;font-size:17px;line-height:1;cursor:pointer;' +
+            'padding:6px;margin:-6px -4px -6px 0;min-width:44px;min-height:44px;';
+          close.addEventListener('click', function (e) { e.stopPropagation(); remember(); hide(); });
+
+          btn.addEventListener('click', function () {
+            if (mode === 'ios') { hint.style.display = hint.style.display === 'block' ? 'none' : 'block'; return; }
+            if (!deferred) return;
+            deferred.prompt();
+            deferred.userChoice.then(function (c) {
+              if (c && c.outcome === 'accepted') { remember(); hide(); }
+            }).catch(function () {});
+            deferred = null;
+          });
+
+          var col = document.createElement('div');
+          col.style.cssText = 'display:flex;flex-direction:column;min-width:0;';
+          col.appendChild(btn); col.appendChild(hint);
+          chip.appendChild(col); chip.appendChild(close);
+          document.body.appendChild(chip);
+
+          addEventListener('keydown', function (e) { if (e.key === 'Escape' && chip) { remember(); hide(); } });
+        }
+        function hide() { if (chip && chip.parentNode) chip.parentNode.removeChild(chip); chip = null; }
+
+        addEventListener('beforeinstallprompt', function (e) {
+          e.preventDefault(); deferred = e;
+          setTimeout(function () { build('prompt'); }, 2500);
+        });
+        addEventListener('appinstalled', function () { remember(); hide(); });
+        if (isIOS()) setTimeout(function () { build('ios'); }, 2500);
+
+        window.__installChip = function (mode) { try { localStorage.removeItem(KEY); } catch (e) {} build(mode || 'ios'); };
+      })();
+    </script>
+    <script>
+      /* BRAND = HOME. The header brand block is styled `cursor-pointer group` but has no
+         click handler at all - it looks interactive and does nothing. This wires the whole
+         block (mark, wordmark and tagline) to navigate home.
+
+         It is a real navigation rather than a scroll-to-top because the app keeps its
+         current tab, open panels and filters in React state that a stylesheet cannot
+         reach. Going to "/" is the only way to actually return to the default view.
+         Skipped when the user is already home and untouched, so it never reloads for
+         nothing. Also made keyboard reachable, which it was not. */
+      (function () {
+        function brandBlock() {
+          var wm = document.querySelector('header .font-display.font-black');
+          if (!wm) return null;
+          var el = wm.parentElement;
+          while (el && el.tagName !== 'HEADER' && el.getBoundingClientRect().width < 200) el = el.parentElement;
+          return el && el.tagName !== 'HEADER' ? el : null;
+        }
+        function goHome(e) {
+          if (e) e.preventDefault();
+          var atTop = (window.scrollY || document.documentElement.scrollTop || 0) < 4;
+          var overlayOpen = [].some.call(document.querySelectorAll('.fixed.inset-0'), function (o) {
+            return (parseInt(getComputedStyle(o).zIndex, 10) || 0) >= 50;
+          });
+          if (atTop && !overlayOpen && location.pathname === '/' && !location.search && !location.hash) return;
+          location.assign('/');
+        }
+        function wire() {
+          var b = brandBlock();
+          if (!b || b.dataset.home === '1') return;
+          b.dataset.home = '1';
+          b.setAttribute('role', 'link');
+          b.setAttribute('tabindex', '0');
+          b.setAttribute('aria-label', 'Inside Hoi An - go to the home view');
+          b.addEventListener('click', goHome);
+          b.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') goHome(e);
+          });
+        }
+        function boot() {
+          wire();
+          var t = null;
+          new MutationObserver(function () { clearTimeout(t); t = setTimeout(wire, 150); })
+            .observe(document.documentElement, { childList: true, subtree: true });
+        }
+        if (document.readyState === 'loading') addEventListener('DOMContentLoaded', boot);
+        else boot();
+      })();
+    </script>
+  </body>
+</html>
