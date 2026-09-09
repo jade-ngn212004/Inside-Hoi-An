@@ -17,11 +17,11 @@
     <meta property="og:image:alt" content="Inside Hoi An - curated heritage guide, map and food directory." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content="https://inside-hoi-an.ai.studio/og-card.png" />
-    <link rel="icon" href="favicon.ico" sizes="any" />
-    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
-    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#1c1917" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -38,9 +38,9 @@
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap">
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
     <noscript><link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap" rel="stylesheet"></noscript>
-    <link rel="stylesheet" href="assets/leaflet-1.9.4.css" />
-    <script type="module" crossorigin src="assets/index-B97Xc7BA.js"></script>
-    <link rel="stylesheet" crossorigin href="assets/index-PV7nnW8Q.css">
+    <link rel="stylesheet" href="/assets/leaflet-1.9.4.css" />
+    <script type="module" crossorigin src="/assets/index-B97Xc7BA.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-PV7nnW8Q.css">
     <style>
       /* AUDIT FIX - modal stacking (BUG-AUDIT.md defect 9).
          Ten overlays render as `.fixed.inset-0.z-50`, but the sticky site header is
@@ -310,7 +310,7 @@
       header .w-10.h-10.rounded-xl > div {
         background-color: transparent;
         border-radius: 0;
-        background-image: url("brand/logo-art.png");
+        background-image: url("/brand/logo-art.png");
         background-size: contain;
         background-position: center;
         background-repeat: no-repeat;
@@ -335,7 +335,7 @@
         display: inline-block;
         width: 119px;
         height: 38px;
-        background-image: url("brand/wordmark-amber.png");
+        background-image: url("/brand/wordmark-amber.png");
         background-size: contain;
         background-position: left center;
         background-repeat: no-repeat;
@@ -485,7 +485,7 @@
          works exactly as before without it. */
       if ('serviceWorker' in navigator) {
         addEventListener('load', function () {
-          navigator.serviceWorker.register('sw.js', { scope: './' }).catch(function () {});
+          navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
         });
       }
     </script>
@@ -544,7 +544,7 @@
           }).observe(document.documentElement, { childList: true, subtree: true });
         }
 
-        fetch('brand/pay/marks.json', { cache: 'no-store' })
+        fetch('/brand/pay/marks.json', { cache: 'no-store' })
           .then(function (r) { return r.ok ? r.json() : { marks: [] }; })
           .then(function (d) {
             var map = {};
@@ -689,8 +689,8 @@
           var overlayOpen = [].some.call(document.querySelectorAll('.fixed.inset-0'), function (o) {
             return (parseInt(getComputedStyle(o).zIndex, 10) || 0) >= 50;
           });
-          if (atTop && !overlayOpen && !location.search && !location.hash) return;
-          location.assign('./');
+          if (atTop && !overlayOpen && location.pathname === '/' && !location.search && !location.hash) return;
+          location.assign('/');
         }
         function wire() {
           var b = brandBlock();

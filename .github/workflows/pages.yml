@@ -1,0 +1,40 @@
+name: Deploy to GitHub Pages
+
+# The app lives in dist/, not at the repo root. Without this, Pages serves the
+# root - which has no index.html - and renders README.md as the site instead.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Jekyll would otherwise ignore any file or folder starting with an
+      # underscore, which would silently drop dist/_api/.
+      - name: Disable Jekyll processing
+        run: touch dist/.nojekyll
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

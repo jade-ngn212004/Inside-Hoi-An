@@ -1,10 +1,10 @@
 {
-  "id": "./",
+  "id": "/",
   "name": "Inside Hoi An — Curated Heritage Guide, Map & Food Directory",
   "short_name": "Inside Hoi An",
   "description": "The definitive interactive neighbourhood guide, curated food directory, artisan index and experience booking for Hoi An Ancient Town and surroundings.",
-  "start_url": "./",
-  "scope": "./",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "display_override": [
     "standalone",
@@ -22,25 +22,25 @@
   ],
   "icons": [
     {
-      "src": "icons/icon-192.png",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/icon-192-maskable.png",
+      "src": "/icons/icon-192-maskable.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "icons/icon-512-maskable.png",
+      "src": "/icons/icon-512-maskable.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -48,14 +48,14 @@
   ],
   "screenshots": [
     {
-      "src": "screenshots/mobile.png",
+      "src": "/screenshots/mobile.png",
       "sizes": "1170x2532",
       "type": "image/png",
       "form_factor": "narrow",
       "label": "Map, weather and currency on a phone"
     },
     {
-      "src": "screenshots/desktop.png",
+      "src": "/screenshots/desktop.png",
       "sizes": "1440x1100",
       "type": "image/png",
       "form_factor": "wide",

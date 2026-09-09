@@ -20,19 +20,19 @@ const API_CACHE     = 'ih-api-v2';
 const KEEP = [SHELL_VERSION, MEDIA_CACHE, TILE_CACHE, API_CACHE];
 
 const SHELL = [
-  './',
-  './index.html',
-  './assets/index-B97Xc7BA.js',
-  './assets/index-PV7nnW8Q.css',
-  './assets/leaflet-1.9.4.css',
-  './manifest.webmanifest',
-  './favicon.ico',
-  './apple-touch-icon.png',
-  './brand/logo-art.png',
-  './brand/wordmark-amber.png',
-  './brand/logo-mark.png',
-  './icons/icon-192.png',
-  './icons/icon-512.png'
+  '/',
+  '/index.html',
+  '/assets/index-B97Xc7BA.js',
+  '/assets/index-PV7nnW8Q.css',
+  '/assets/leaflet-1.9.4.css',
+  '/manifest.webmanifest',
+  '/favicon.ico',
+  '/apple-touch-icon.png',
+  '/brand/logo-art.png',
+  '/brand/wordmark-amber.png',
+  '/brand/logo-mark.png',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png'
 ];
 
 const TILE_LIMIT  = 400;
@@ -85,18 +85,18 @@ self.addEventListener('fetch', event => {
         const preloaded = await event.preloadResponse;
         const fresh = preloaded || await fetch(req);
         const cache = await caches.open(SHELL_VERSION);
-        cache.put('./index.html', fresh.clone());
+        cache.put('/index.html', fresh.clone());
         return fresh;
       } catch (e) {
         const cache = await caches.open(SHELL_VERSION);
-        return (await cache.match('./index.html')) || (await cache.match('./')) || Response.error();
+        return (await cache.match('/index.html')) || (await cache.match('/')) || Response.error();
       }
     })());
     return;
   }
 
   // 2. Captured API snapshots: network-first, keep the last good body.
-  if (sameOrigin && url.pathname.includes('/api/')) {
+  if (sameOrigin && url.pathname.startsWith('/api/')) {
     event.respondWith((async () => {
       try {
         const fresh = await fetch(req);
@@ -167,7 +167,7 @@ self.addEventListener('fetch', event => {
   // 6. Local photography and brand art: cache-first, capped.
   //    /assets/*.jpg is included here rather than above: it is photography that
   //    happens to live beside the bundle, and it belongs under the media cap.
-  if (/\/(images|brand|icons|screenshots|assets)\//.test(url.pathname)) {
+  if (/^\/(images|brand|icons|screenshots|assets)\//.test(url.pathname)) {
     event.respondWith((async () => {
       const cache = await caches.open(MEDIA_CACHE);
       const hit = await cache.match(req);
