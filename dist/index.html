@@ -811,6 +811,19 @@
          works exactly as before without it. */
       if ('serviceWorker' in navigator) {
         addEventListener('load', function () {
+          /* Reload once when a newer worker takes over an already-open page, so a
+             deploy reaches a page that was left open. A home-screen app that is
+             merely brought back to the foreground never re-fetches on its own; this
+             is the only thing that can. Skipped for the first install, where there
+             was no previous controller, and it fires at most once per page
+             instance, so it cannot loop. */
+          var hadController = !!navigator.serviceWorker.controller, reloaded = false;
+          navigator.serviceWorker.addEventListener('controllerchange', function () {
+            if (!hadController) { hadController = true; return; }
+            if (reloaded) return;
+            reloaded = true;
+            location.reload();
+          });
           navigator.serviceWorker.register('sw.js', { scope: './' }).catch(function () {});
         });
       }

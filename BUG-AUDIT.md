@@ -1031,6 +1031,33 @@ The fixed build lives only at `https://javier-sysflow.github.io/Inside-Hoi-An/`.
 old Pages URL (`.../Inside-Hoi-An-jade-s_project-/`) returns 404 since the rename.
 **When "still broken" is reported, the first question is which URL.**
 
+### 25b. Why a phone can still show the old layout after a deploy
+
+Reported after both mobile passes were live: "the map is not showing on load, something
+is hiding it; click the location pin, collapse the converter, and it shows only
+briefly." That sequence was driven on the live site under iPhone emulation: on a fresh
+load the map is the first thing under the header (613px visible), the pin and the
+converter sit *below* it at y=903, and clicking either changes nothing - no overlay,
+no scroll, no flash. The description matches the old layout, where the currency and
+weather strips sat above the map and a layout shift could bring it into view for a
+moment. So the page on that phone was an old one. Three ways that happens:
+
+1. **An open page never re-fetches.** A Safari tab or a home-screen app that was left
+   open and brought back to the foreground keeps the DOM it had. Nothing on the server
+   can reach it; it has to be closed (home-screen app: swipe it away in the app
+   switcher) and opened again.
+2. **The worker used to hold the shell.** Fixed in v3; and the worker now revalidates
+   `index.html` with a conditional request on every open, so a deploy is seen on the
+   next open rather than up to `max-age` (10 minutes on Pages) later.
+3. **A newer worker taking over an open page did nothing visible.** Now the page
+   reloads itself once when that happens (never on first install, never twice).
+
+*Fingerprint for the current build on a phone:* the four map-mode buttons are a row of
+icons directly under the filter chips, on the left. Labelled pills stacked on the right,
+or a currency table above the map, mean an old page.
+*Guaranteed-fresh check:* open `https://javier-sysflow.github.io/Inside-Hoi-An/?fresh=1`
+- a different URL to the HTTP cache, the same page to the app.
+
 ### 26. On a phone, most of the map could not be touched — FIXED
 
 The Pages site was probed under iPhone and Android emulation, first visit and a

@@ -89,8 +89,22 @@ self.addEventListener('fetch', event => {
   if (req.mode === 'navigate') {
     event.respondWith((async () => {
       try {
-        const preloaded = await event.preloadResponse;
-        const fresh = preloaded || await fetch(req);
+        /* Revalidate the shell on every open. 'no-cache' makes a conditional
+           request, so an unchanged page costs a 304 and a deploy is seen on the
+           very next open instead of up to max-age later (10 minutes on Pages).
+           The navigation-preload response goes through the HTTP cache, so it is
+           kept only as the fallback when the conditional fetch itself fails. */
+        let fresh;
+        try {
+          fresh = await fetch(new Request(req.url, {
+            cache: 'no-cache',
+            credentials: 'same-origin',
+            headers: { 'Accept': 'text/html,application/xhtml+xml' }
+          }));
+        } catch (e) {
+          fresh = await event.preloadResponse;
+          if (!fresh) throw e;
+        }
         const cache = await caches.open(SHELL_VERSION);
         cache.put('./index.html', fresh.clone());
         return fresh;
