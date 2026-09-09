@@ -421,6 +421,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 if __name__ == "__main__":
     mimetypes.init()
     http.server.ThreadingHTTPServer.allow_reuse_address = True
+    http.server.ThreadingHTTPServer.daemon_threads = True
     with http.server.ThreadingHTTPServer(("127.0.0.1", PORT), Handler) as httpd:
         print(f"Inside Hoi An -> http://127.0.0.1:{PORT}  (root: {ROOT})")
         print("gzip: on   webp negotiation: on   hashed assets: immutable")
