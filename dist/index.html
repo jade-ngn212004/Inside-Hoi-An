@@ -1048,6 +1048,14 @@
         .fixed.inset-0.z-50 [class*="overflow-y-auto"] button {
           max-width: 100%;
         }
+
+        /* The share, save and close buttons sit over the hero at 40px. Close is the
+           one control every dialog must offer, so it gets the same 44px floor as
+           everything else on the map. */
+        .fixed.inset-0.z-50 [class*="aspect-[16/9]"] button {
+          min-width: 44px;
+          min-height: 44px;
+        }
       }
     </style>
     <script src="ai-config.js"></script>
@@ -1593,6 +1601,35 @@
 
         if (mq.addEventListener) mq.addEventListener('change', sync);
         else if (mq.addListener) mq.addListener(sync);
+      })();
+    </script>
+    <script>
+      /* RULE 61. Give the icon-only map controls an accessible name.
+         Six of them - satellite, recenter, zoom in, zoom out, the search drawer and
+         the map-mode buttons that rule 51 turned into icons - carry a `title` and
+         nothing else. `title` is a hover affordance: on a touch screen there is no
+         hover, so it shows nothing, and VoiceOver's use of it is inconsistent and
+         off by default. Copying it to aria-label costs nothing and makes each button
+         announce itself. The title is left in place for desktop hover.
+
+         Only ever adds a name to a button that has none - never overwrites an
+         existing aria-label, and never touches a button with visible text. */
+      (function () {
+        function name() {
+          var buttons = document.querySelectorAll('button[title]:not([aria-label]), a[title]:not([aria-label])');
+          for (var i = 0; i < buttons.length; i++) {
+            var b = buttons[i];
+            if ((b.textContent || '').trim()) continue;      /* has a visible label already */
+            var t = b.getAttribute('title');
+            if (t) b.setAttribute('aria-label', t);
+          }
+        }
+        name();
+        var t = null;
+        new MutationObserver(function () {
+          clearTimeout(t);
+          t = setTimeout(name, 300);
+        }).observe(document.documentElement, { childList: true, subtree: true });
       })();
     </script>
   </body>

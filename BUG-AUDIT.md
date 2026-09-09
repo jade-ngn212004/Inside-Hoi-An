@@ -1198,6 +1198,171 @@ outright for the same underlying reason as this - a WebKit layout difference, no
 scroll position. From here on, mobile verification runs in both engines; the WebKit
 harness is Playwright with the iPhone 14 descriptor.
 
+## The footer on phones (defect 30, rule 55)
+
+### 30. The footer was 59% of the page and had no touch targets in it — FIXED
+
+The footer renders as `grid-cols-2`, which on a 390px screen is two 163px columns
+holding 51 links. Measured at 390x844:
+
+| | before |
+|---|---|
+| footer height | **1901px**, of a 3234px document |
+| the five columns | 559 / 559 / 388 / 388 / 343px, two-up |
+| link height | 19px, every one of the 51 |
+| links at or over 44px | **0** |
+| labels wrapping mid-phrase | 17 of 51 |
+
+Three separate problems, all of them the column width:
+
+- **Nothing in it is a touch target.** Every link is a 19px row with a 10px gap
+  above it. The median row is under half the 44px minimum, and the rows either side
+  of it are 29px away centre to centre.
+- **The app's own calls to action could not be read.** The three promo buttons carry
+  Tailwind's `truncate`. At 163px that clipped them to "Events & …", "Book Veh…"
+  and "Accomm…" - the LIVE, HOT and NEW badges announced something the visitor could
+  not see the name of.
+- **Half the grid was empty.** Two 559px columns beside two 388px ones and a 343px
+  one leaves roughly 250px of blank column, and "Discover", the fifth, sits alone
+  with an empty half-page next to it. The wall was not even a dense wall.
+
+*Fix (rule 55, plus a runtime half at the end of `<body>`):* below 768px the grid
+becomes one column and each heading becomes its own 52px disclosure row - five
+readable section names in a screen's worth of space, opening to full-width 44px
+rows. Every link is still there and still one tap away; the list it lives in is now
+something the visitor chooses to open. The 10px `space-y-2.5` gutter goes with the
+change, because a 44px row does not need a gap as well. At 358px of row the
+ellipsis has nothing left to clip, so the three promo buttons read in full.
+
+| | before | after |
+|---|---|---|
+| footer height, closed | 1901px | **811px** |
+| the link grid | 1354px | **264px** (five 52px rows) |
+| document height | 3234px | **2144px** |
+| link height, open section | 19px | **44px**, all 15 |
+| labels clipped or wrapped | 3 clipped, 17 wrapped | **0** |
+
+*Nothing is hidden behind script that is not there.* The collapse rules key on
+`[data-ih-acc]`, which only the runtime half sets. If it never runs, the footer is a
+plain single column with 44px rows and all 51 links visible (measured: 3466px tall,
+0 hidden) - longer than before, but nothing lost.
+
+*The runtime half touches no React state and inserts no nodes.* The footer gets
+`data-ih-acc`, each column gets `data-ih-open`, the heading gets `role`, `tabindex`
+and `aria-expanded`; the chevron is a CSS pseudo-element drawn from two borders.
+React does not manage those attributes, so a re-render leaves them alone - verified
+across a language switch, where the column node kept its identity and its open state
+while its heading text changed to Vietnamese. The toggle is bound to the footer with
+capture, so replacing the headings cannot unbind it, and it acts only on a click
+whose `closest('h3')` is a section heading: tapping a link still reaches the app
+(verified - "Cao Lầu & Mì Quảng" still fills the search box, and the section it was
+in stays open).
+
+*Above 768px nothing changed at all.* Desktop is still five 217px columns and the
+tablet three 218px ones, with no `data-ih-acc` on the footer and no `role` on the
+headings - the attributes are stripped, not merely ignored, when the viewport leaves
+the phone range, so a rotation does not leave a screen reader being told about a
+control the layout no longer has.
+
+*Verified in both engines,* per the rule set after defect 29. Blink at 390x844 and
+320x640, WebKit through Playwright's iPhone 14 descriptor: identical numbers -
+811px closed, 52px heading rows, 44px links when open, no horizontal overflow, and
+the chevron pseudo-element rendering in both. Also checked: Vietnamese, where the
+longest label ("Lưu Trú (Khách Sạn & Resort)") fits one 44px row with its badge;
+keyboard, where Enter and Space toggle a heading and Space does not scroll the page;
+and `prefers-reduced-motion`, which rule 33 already answers for the chevron.
+
+### 31. On phones, every header control also navigates home — NOT FIXED, found here
+
+Found while verifying the above, and unrelated to it. The "brand = home" shim (see
+*Header lockup*) finds the brand block by walking up from the wordmark until it
+reaches an ancestor at least 200px wide. On a desktop that is the 236px brand
+lockup, which is right. On a 390px phone the header row wraps (rule 11), so the walk
+stops on `div.flex.items-center.justify-between.h-16` - **the whole header row**,
+236px of brand and eight buttons: SOS, AI Concierge, the language toggle and the
+five nav pills.
+
+Its click handler is on that container, so tapping any of those also runs `goHome`,
+and `goHome` navigates unless the visitor happens to be at the top of the page. Read
+the footer, tap EN to switch to Vietnamese, and the page reloads in English.
+
+Not fixed here because it belongs to the header pass, not this one. The shim needs a
+stronger stop condition than width - the brand block is the nearest ancestor that
+carries `cursor-pointer` and contains no `<button>`.
+
+## The map controls and the marker dialog (defects 31-32, rules 56-61)
+
+Audited in WebKit on an iPhone 14, where the visible viewport is **664px, not the
+nominal 844** - Safari's own chrome takes the rest - so the map is 433px and every
+control on it competes for a small surface.
+
+### 31. Eleven of the seventeen map controls were untappable — FIXED
+
+| control | was | now |
+|---|---|---|
+| search field's input | **20px tall** | 44px |
+| search drawer button | 36x36 | 44x44 |
+| zoom in / zoom out / satellite / recenter | 40x40 | 44x44 |
+| events pill | 41px | 44px |
+| dialog share / save / close | 40x40 | 44x44 |
+| filter chips | 30px | 40px *(deliberate: a secondary scrolling row; at 44 the strip reads as a second toolbar)* |
+
+**4 of 17 under the minimum, from 11** - and the four are the chips, by choice.
+
+Six icon-only buttons carried a `title` and no accessible name. `title` is a hover
+affordance: on a phone there is no hover, so it shows nothing, and VoiceOver's use of
+it is inconsistent and off by default. Rule 61 copies it to `aria-label` for any
+button that has no name and no visible text, leaving the title for desktop hover.
+**1 unnamed control remains** - the search input, which has a placeholder.
+
+Reachable map surface went 70% -> 63%: bigger targets cover more map. That is the
+trade, and it is the right way round - the controls are now hittable, and the
+thumb-reachable lower half is still 78% map.
+
+### 32. The marker dialog: a giant picture and a sliver of scroll — FIXED
+
+Reported as "clicking a marker on desktop, the modal has a giant picture then only a
+small sliver of scroll", and "all messed up" on a phone. One cause: the hero is
+`aspect-[16/9] w-full` with **no cap**, so the wider the dialog, the less room is
+left for what you opened it to read.
+
+| | desktop 1440x900 | iPhone 14 |
+|---|---|---|
+| hero | 377px, **46% of the card** | 194px |
+| content visible | 336px of 633px = **53%** | 285px of 852px = **33%** |
+| **after** | 473px = **75%** | 365px = **42%** |
+
+- **58.** Cap the hero at 240px on wide screens. The badges, rating and title over it
+  need about 150px, so 240 is still generous, and it hands 137px to the content.
+  `object-cover` means it crops rather than distorts.
+- **59.** On a phone the hero was not the problem - the frame was. The overlay inset
+  the card 16px and capped it near 92vh, spending 53px of a 664px screen on
+  letterboxing. The sheet now uses the full screen. Two things had to be right:
+  the card is sized `height: 100%` **of the overlay**, not `100dvh` (dvh resolved
+  38px taller and hung the card off the top), and its shipped `my-8` is zeroed -
+  full height plus 64px of margin overflowed the overlay and `flex-end` pushed the
+  top off-screen, **slicing the close button in half**. Going full-bleed widens the
+  card to 384px, which grew the 16:9 hero to 216px, so it is capped at 180.
+- **60.** The card is `rounded-3xl overflow-hidden`, so a too-wide row is not
+  scrollable - it is cut. The ratings summary put its score, its recommendation
+  percentage and a "Read Reviews" button on one nowrap line at 346px and the button
+  lost its last characters. Those rows now wrap.
+
+### Still needs source: marker crowding
+
+**55 of the 62 markers in view overlap another one.** The Ancient Town cluster is a
+pile of 40px circles where a tap lands on whichever happens to be on top. This is the
+biggest remaining map problem and CSS cannot fix it: it needs marker clustering
+(`Leaflet.markercluster` or equivalent) wired into the map's initialisation, which
+means the source.
+
+### serve.py: a client disconnect no longer kills the server
+
+Unrelated but found while testing: WebKit cancels image requests constantly, and the
+resulting `ConnectionResetError` propagated out of the handler thread and took the
+whole dev server down mid-session. `handle_one_request` now swallows reset, abort and
+broken-pipe.
+
 ## Not a defect: local-copy limitations
 
 The live site has a real backend. This folder does not, so these are stubbed:
@@ -1223,7 +1388,7 @@ design. The `GEMINI_API_KEY` in `.env.local` is unused by this build.
 
 | File | Change |
 |---|---|
-| `dist/index.html` | Fixes 2-6, 9-15, polish 20-33, brand mark, PWA wiring, performance 35-40, mobile map-first 41-50, map reachability 51-53, iOS map collapse 54 |
+| `dist/index.html` | Fixes 2-6, 9-15, polish 20-33, brand mark, PWA wiring, performance 35-40, mobile map-first 41-50, map reachability 51-53, iOS map collapse 54, mobile footer 55 |
 | `dist/manifest.webmanifest`, `dist/sw.js` | New: PWA manifest and service worker |
 | `dist/brand/`, `dist/icons/`, `dist/favicon.ico`, `dist/apple-touch-icon.png`, `dist/og-card.png` | New: brand assets from InsideHoiAnLogo.png |
 | `serve.py` | Manifest media type, no-store on the service worker; gzip, WebP negotiation, Cache-Control |
