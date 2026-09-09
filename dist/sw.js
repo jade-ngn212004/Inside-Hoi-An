@@ -152,7 +152,7 @@ self.addEventListener('fetch', event => {
 
   // 5. Hashed shell assets: cache-first. Scoped to this version's cache so a
   //    stale entry from an older shell can never satisfy the lookup.
-  if (url.pathname.startsWith('/assets/') && !/\.(jpe?g|png|webp)$/i.test(url.pathname)) {
+  if (url.pathname.includes('/assets/') && !/\.(jpe?g|png|webp)$/i.test(url.pathname)) {
     event.respondWith((async () => {
       const cache = await caches.open(SHELL_VERSION);
       const hit = await cache.match(req);
